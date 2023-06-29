@@ -13,7 +13,8 @@
 }
 
 .row__questiontypes {
-  border: 1px solid colors.$kobo-blue;
+  // hittine
+  border: 1px solid colors.$kobo-gray-65;
   padding: 0px;
   padding-top: 20px;
   background: colors.$kobo-white;
@@ -22,7 +23,8 @@
 
 .row__questiontypes__list {
   margin-top: 20px;
-  border-top: 1px solid colors.$kobo-blue;
+  // hittine
+  border-top: 1px solid colors.$kobo-gray-65;
   padding: 3px;
   position: relative;
   line-height: 20px;
@@ -45,7 +47,8 @@
   }
   &:before {
     border-color: rgba(colors.$kobo-blue, 0);
-    border-bottom-color: colors.$kobo-blue;
+    // hittine
+    border-bottom-color: colors.$kobo-gray-65;
     border-width: 11px;
     margin-left: -11px;
   }
@@ -90,7 +93,8 @@ input.row__questiontypes__new-question-name {
     input {
       width: 72%;
       padding: 9px;
-      border: 1px solid colors.$kobo-blue;
+      // hittine
+      border: 1px solid colors.$kobo-gray-65;
       font-size: 15px;
     }
     button {
@@ -139,6 +143,6 @@ input.row__questiontypes__new-question-name {
 // Force hover through jQuery for arrow key navigation
 .questiontypelist__item-force-hover {
   @include form-builder-focus();
-
-  color: $cardInSortBorderColor;
+  // hittine
+  color: #9C6644;
 }
