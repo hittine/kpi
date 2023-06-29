@@ -33,7 +33,8 @@ $layout-desktop-header-height: 64px;
 }
 
 @mixin form-builder-focus {
-  outline-color: colors.$kobo-blue;
+  // hittine
+  outline-color: #9C6644;
   outline-offset: -2px;
   outline-style: auto;
   outline-width: 5px;
