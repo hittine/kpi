@@ -28,6 +28,17 @@
   that use: `.mdl-button.mdl-button--colored.mdl-button--raised`.
 */
 
+$small: 600px;
+
+@media (max-width: $small) {
+  .kobo-button {
+    font-size: sizes.$x10 !important;
+    padding: 0 !important;
+    line-height: sizes.$x15 !important;
+    background-color: #9c6644 !important;
+  }
+}
+
 .kobo-button {
   display: inline-block;
   vertical-align: middle;
