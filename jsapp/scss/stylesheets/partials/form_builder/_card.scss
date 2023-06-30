@@ -274,6 +274,11 @@ $cardIndicatorIconWidth: 21px;
     &.card__buttons__button--blue {
         color: colors.$kobo-blue;
     }
+    // hittine
+    &.card__buttons__button--kobo-primary {
+        color: #9C6644 !important;
+
+    }
 
     &.card__buttons__button--teal {
         color: colors.$kobo-teal;
