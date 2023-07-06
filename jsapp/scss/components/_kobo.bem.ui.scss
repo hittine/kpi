@@ -543,9 +543,10 @@ span.svg-icon {
 
 // Scrollbar overrides
 
-::-webkit-scrollbar {
-  width: 0.8em;
-}
+// hittine - remove override scrollbar
+// ::-webkit-scrollbar {
+//   width: 0.8em;
+// }
 
 ::-webkit-scrollbar:horizontal {
   height: 0.8em;
