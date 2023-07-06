@@ -18,7 +18,8 @@ $s-form-builder-content-width: 1024px;
   overflow-y: scroll;
   margin-right: 0;
   transition: margin $t-form-builder-aside-open;
-  padding: 20px 40px;
+  // hittine - reduce padding
+  padding: 16px;
   width: auto;
 
   .form-builder-message-box {
