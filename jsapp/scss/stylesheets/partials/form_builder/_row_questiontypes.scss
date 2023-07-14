@@ -19,6 +19,7 @@
   padding-top: 20px;
   background: colors.$kobo-white;
   margin: 4px 0px;
+  border-radius: 8px;
 }
 
 .row__questiontypes__list {
@@ -96,6 +97,7 @@ input.row__questiontypes__new-question-name {
       // hittine
       border: 1px solid colors.$kobo-gray-65;
       font-size: 15px;
+      border-radius: 8px;
     }
     button {
       width: 25%;

@@ -29,8 +29,7 @@
         background: colors.$kobo-white;
         position: relative;
         // hittine - rounded border 8px
-        border-top-right-radius: 8px;
-        border-top-left-radius: 8px;
+        border-radius: 8px;
 
         // don't show move cursor if not inside an enabled sortable instance
         // HACK: `.ui-sortable-disabled` only applies to a group, so not to the
