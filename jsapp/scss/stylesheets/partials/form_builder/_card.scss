@@ -202,7 +202,10 @@ $cardIndicatorIconWidth: 21px;
     z-index: z-indexes.$z-form-builder-card-buttons;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    // hittine - override style
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
 }
 
 .card--shaded .card__buttons {
