@@ -27,7 +27,7 @@
 .editable-wrapper input {
   font-family: $font;
   border: none;
-  padding: 0px;
+  // padding: 0px;
   margin: 0px;
   font-weight: 600;
   display: inline;
@@ -35,6 +35,9 @@
   font-size: 13px;
   width: 100%;
   background: transparent;
+  // hittine - fixed focus padding
+  padding: 5px;
+  border-radius: 5px;
 }
 
 code input[type="text"] {
