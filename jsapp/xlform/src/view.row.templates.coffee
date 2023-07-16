@@ -110,12 +110,15 @@ module.exports = do ->
             <input type="text" placeholder="#{t("Question hint")}" class="card__header-hint js-card-hint js-cancel-select-row js-cancel-sort">
           </div>
           <div class="card__buttons">
-            <span class="card__buttons__button card__buttons__button--settings card__buttons__button--gray js-toggle-card-settings" data-button-name="settings"><i class="k-icon k-icon-settings"></i></span>
-            <span class="card__buttons__button card__buttons__button--delete card__buttons__button--red js-delete-row" data-button-name="delete"><i class="k-icon k-icon-trash"></i></span>
+            <span class="card__buttons__button card__buttons__button--delete card__buttons__button--red js-delete-row" data-button-name="delete">
+            <i class="k-icon k-icon-trash"></i></span>
       """
       if surveyView.features.multipleQuestions
-        template += """<span class="card__buttons__button card__buttons__button--copy card__buttons__button--kobo-primary js-clone-question" data-button-name="duplicate"><i class="k-icon k-icon-duplicate"></i></span>
-                  <span class="card__buttons__button card__buttons__button--add card__buttons__button--kobo-primary js-add-to-question-library" data-button-name="add-to-library"><i class="k-icon k-icon-folder-plus"></i></i></span>"""
+        template += """<span class="card__buttons__button card__buttons__button--copy card__buttons__button--kobo-primary js-clone-question" data-button-name="duplicate"><i class="k-icon k-icon-duplicate"></i></span>"""
+# hittine - removed these
+#  <span class="card__buttons__button card__buttons__button--settings card__buttons__button--gray js-toggle-card-settings" data-button-name="settings">
+#  <i class="k-icon k-icon-settings"></i></span>
+#  <span class="card__buttons__button card__buttons__button--add card__buttons__button--kobo-primary js-add-to-question-library" data-button-name="add-to-library"><i class="k-icon k-icon-folder-plus"></i></i></span>
 
       return template + """
           </div>
