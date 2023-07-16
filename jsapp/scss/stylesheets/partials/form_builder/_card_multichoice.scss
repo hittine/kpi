@@ -48,8 +48,10 @@
 
 // .xlf-option-view BECOMES .multioptions__option
 .multioptions__option {
-  margin-bottom: 4px;
+  // hittine - To remove auto-generate field
+  // margin-bottom: 4px;
   margin-left: 4px;
+  margin-right: 4px;
   position: relative;
 
   div.editable-wrapper {
@@ -59,7 +61,9 @@
     padding: 5px;
     font-size: 13px;
     display: inline-block;
-    width: 72%;
+    // hittine - To remove auto-generate field
+    width: 100% !important;
+    // width: 72%;
     vertical-align: top;
     height: auto;
     position: relative;
@@ -90,13 +94,16 @@
     font-size: 11px;
     font-family: $font;
     background-color: colors.$kobo-gray-92;
-    padding: 2px;
-    margin: 2px;
-    width: 25%;
+    // padding: 2px;
+    // margin: 2px;
+    // width: 25%;
     text-align: left;
     display: inline-block;
     margin-left: 2%;
     overflow: hidden;
+    // hittine - To remove auto-generate field
+    width: 0 !important;
+    height: 0 !important;
 
     label {
       display: inline-block;
