@@ -204,8 +204,7 @@ $cardIndicatorIconWidth: 21px;
     flex-direction: column;
     // hittine - override style
     align-items: center;
-    justify-content: center;
-    gap: 12px;
+    justify-content: space-evenly;
 }
 
 .card--shaded .card__buttons {
