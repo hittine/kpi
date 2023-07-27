@@ -54,6 +54,12 @@
   margin-right: 4px;
   position: relative;
 
+  // hittine - add-more-option class
+
+  div.add-more-option {
+    padding: 5px;
+  }
+
   div.editable-wrapper {
     font-weight: 600;
     border-radius: 5px;
@@ -72,6 +78,8 @@
     .list-view .ui-sortable.js-sortable-enabled & {
       cursor: move;
     }
+
+
 
     &:focus {
       border-color: lighten(colors.$kobo-blue, 10%);
