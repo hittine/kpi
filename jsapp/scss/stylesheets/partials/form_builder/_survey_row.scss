@@ -68,7 +68,8 @@
 .rankcell__delete, .scorecell__delete, .scorerow__delete {
   border: 0 none;
   background-color: transparent;
-  float: right;
+  // hittine - remove float
+  // float: right;
   color: colors.$kobo-red;
   cursor: pointer;
 
@@ -195,10 +196,19 @@ tr .scorecell__radio:hover {
   }
 }
 
+// hittine - remove br
+.rank_items__level br {
+    display: none;
+}
+
 .rank_items__item, .rank_items__level {
   border: 1px solid;
   border-color: colors.$kobo-gray-65;
   border-radius: 4px;
+  // hittine - adjustment ranking
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .rank_items__constraint_message {
@@ -304,6 +314,8 @@ tr .scorecell__radio:hover {
 }
 
 .scorecell__name, .scorelabel__name, .rank_items__name {
+  // hittine - remove automatic span
+  display: none;
   font-size: 90%;
   color: colors.$kobo-gray-40;
 
