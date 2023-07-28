@@ -304,6 +304,8 @@ tr .scorecell__radio:hover {
 }
 
 .scorecell__name, .scorelabel__name, .rank_items__name {
+  // hittine - remove automatic span
+  display: none;
   font-size: 90%;
   color: colors.$kobo-gray-40;
 
