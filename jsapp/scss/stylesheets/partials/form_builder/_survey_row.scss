@@ -68,7 +68,8 @@
 .rankcell__delete, .scorecell__delete, .scorerow__delete {
   border: 0 none;
   background-color: transparent;
-  float: right;
+  // hittine - remove float
+  // float: right;
   color: colors.$kobo-red;
   cursor: pointer;
 
