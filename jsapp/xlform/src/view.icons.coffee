@@ -27,27 +27,27 @@ module.exports = do ->
   addIconToRow(constants.QUESTION_TYPES.time, "r2")
   addIconToRow(constants.QUESTION_TYPES.datetime, "r2")
   # row 3
-  addIconToRow(constants.QUESTION_TYPES.geopoint, "r3")
-  addIconToRow(constants.QUESTION_TYPES.image, "r3")
-  addIconToRow(constants.QUESTION_TYPES.audio, "r3")
-  addIconToRow(constants.QUESTION_TYPES.video, "r3")
+  # addIconToRow(constants.QUESTION_TYPES.geopoint, "r3")
+  # addIconToRow(constants.QUESTION_TYPES.image, "r3")
+  # addIconToRow(constants.QUESTION_TYPES.audio, "r3")
+  # addIconToRow(constants.QUESTION_TYPES.video, "r3")
   # row 4
-  addIconToRow(constants.QUESTION_TYPES.geotrace, "r4")
-  addIconToRow(constants.QUESTION_TYPES.note, "r4")
-  addIconToRow(constants.QUESTION_TYPES.barcode, "r4")
-  addIconToRow(constants.QUESTION_TYPES.acknowledge, "r4")
+  # addIconToRow(constants.QUESTION_TYPES.geotrace, "r4")
+  # addIconToRow(constants.QUESTION_TYPES.note, "r4")
+  # addIconToRow(constants.QUESTION_TYPES.barcode, "r4")
+  # addIconToRow(constants.QUESTION_TYPES.acknowledge, "r4")
   # row 5
-  addIconToRow(constants.QUESTION_TYPES.geoshape, "r5")
+  # addIconToRow(constants.QUESTION_TYPES.geoshape, "r5")
   addIconToRow(constants.QUESTION_TYPES.score, "r5")
-  addIconToRow(constants.QUESTION_TYPES.kobomatrix, "r5")
+  # addIconToRow(constants.QUESTION_TYPES.kobomatrix, "r5")
   addIconToRow(constants.QUESTION_TYPES.rank, "r5")
   # row 6
-  addIconToRow(constants.QUESTION_TYPES.calculate, "r6")
-  addIconToRow(constants.QUESTION_TYPES.hidden, "r6")
-  addIconToRow(constants.QUESTION_TYPES.file, "r6")
+  # addIconToRow(constants.QUESTION_TYPES.calculate, "r6")
+  # addIconToRow(constants.QUESTION_TYPES.hidden, "r6")
+  # addIconToRow(constants.QUESTION_TYPES.file, "r6")
   addIconToRow(constants.QUESTION_TYPES.range, "r6")
   # row 7
-  addIconToRow(constants.QUESTION_TYPES['xml-external'], "r7")
+  # addIconToRow(constants.QUESTION_TYPES['xml-external'], "r7")
 
   class QtypeIcon extends Backbone.Model
     defaults: {
