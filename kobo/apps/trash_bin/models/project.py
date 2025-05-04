@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from django.conf import settings
 from django.db import models, transaction
-from django.utils.timezone import now
+from django.utils import timezone
 
-from kpi.deployment_backends.kc_access.shadow_models import KobocatUser, KobocatXForm
+from kobo.apps.openrosa.apps.logger.models import XForm
+from kobo.apps.project_ownership.models import Invite, InviteStatusChoices, Transfer
 from kpi.deployment_backends.kc_access.utils import kc_transaction_atomic
 from kpi.fields import KpiUidField
-from kpi.models import Asset
-from kpi.utils.jsonbfield_helper import ReplaceValues
+from kpi.models.asset import Asset, AssetDeploymentStatus
+from kpi.utils.django_orm_helper import UpdateJSONFieldAttributes
 from . import BaseTrash
+from ..type_aliases import UpdatedQuerySetAndCount
 
 
 class ProjectTrash(BaseTrash):
@@ -24,36 +25,34 @@ class ProjectTrash(BaseTrash):
         verbose_name_plural = 'projects'
 
     def __str__(self) -> str:
-        return f'{self.asset} - {self.periodic_task.start_time}'
+        return f'{self.asset} - {self.periodic_task.clocked.clocked_time}'
 
     @classmethod
-    def toggle_asset_statuses(
+    def toggle_statuses(
         cls,
-        asset_uids: list[str] = None,
-        owner: 'auth.User' = None,
+        object_identifiers: list[str],
         active: bool = True,
         toggle_delete: bool = True,
-    ) -> tuple:
+    ) -> UpdatedQuerySetAndCount:
+        """
+        Toggle statuses of projects based on their `uid`.
+        """
 
-        if asset_uids and owner:
-            raise ValueError(
-                '`asset_uids` and `owner` cannot be passed at the time'
-            )
-
-        if asset_uids:
-            kc_filter_params = {'kpi_asset_uid__in': asset_uids}
-            filter_params = {'uid__in': asset_uids}
-        else:
-            kc_filter_params = {'user': KobocatUser.get_kc_user(owner)}
-            filter_params = {'owner': owner}
+        kc_filter_params = {'kpi_asset_uid__in': object_identifiers}
+        filter_params = {'uid__in': object_identifiers}
 
         kc_update_params = {'downloadable': active}
         update_params = {
-            '_deployment_data': ReplaceValues(
+            '_deployment_data': UpdateJSONFieldAttributes(
                 '_deployment_data',
                 updates={'active': active},
             ),
-            'date_modified': now(),
+            '_deployment_status': (
+                AssetDeploymentStatus.DEPLOYED
+                if active
+                else AssetDeploymentStatus.ARCHIVED
+            ),
+            'date_modified': timezone.now(),
         }
 
         if toggle_delete:
@@ -70,10 +69,18 @@ class ProjectTrash(BaseTrash):
                 updated = queryset.update(
                     **update_params
                 )
-                if not settings.TESTING:
-                    kc_updated = KobocatXForm.objects.filter(
-                        **kc_filter_params
-                    ).update(**kc_update_params)
-                    assert updated >= kc_updated
+
+                if toggle_delete and not active:
+                    Invite.objects.filter(
+                        pk__in=Transfer.objects.filter(
+                            asset_id__in=queryset.values_list('pk', flat=True),
+                            invite__status=InviteStatusChoices.PENDING,
+                        ).values_list('invite_id', flat=True)
+                    ).update(status=InviteStatusChoices.CANCELLED)
+
+                kc_updated = XForm.all_objects.filter(**kc_filter_params).update(
+                    **kc_update_params
+                )
+                assert updated >= kc_updated
 
         return queryset, updated

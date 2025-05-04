@@ -1,11 +1,9 @@
-const path = require('path');
-const webpack = require('webpack');
-
-let SpeedMeasurePlugin;
+const path = require('path')
+const webpack = require('webpack')
+let SpeedMeasurePlugin
 if (process.env.MEASURE) {
-  SpeedMeasurePlugin = require('speed-measure-webpack-plugin');
+  SpeedMeasurePlugin = require('speed-measure-webpack-plugin')
 }
-
 module.exports = {
   stories: ['../jsapp/**/*.stories.@(js|jsx|ts|tsx)'],
   addons: [
@@ -20,25 +18,30 @@ module.exports = {
     //   issues in Storybook 6.
     // - Testing with React 16.14.0 and Storybook 7 (beta) seemed to perform
     //   well.
+    'storybook-dark-mode',
+    '@storybook/addon-webpack5-compiler-swc',
+    'storybook-addon-remix-react-router',
   ],
-  framework: '@storybook/react',
-  core: {
-    builder: '@storybook/builder-webpack5',
+
+  framework: {
+    name: '@storybook/react-webpack5',
+    options: {},
   },
-  webpackFinal: async (config, {configType}) => {
-    config.plugins.push(new webpack.ProvidePlugin({$: 'jquery'}));
+  typescript: {
+    reactDocgen: 'react-docgen-typescript-plugin',
+  },
+  webpackFinal: async (config, { configType }) => {
+    config.plugins.push(new webpack.ProvidePlugin({ $: 'jquery' }))
     config.module.rules.push({
       resolve: {
-        extensions: ['.jsx', '.js', '.es6', '.coffee', '.ts', '.tsx', '.scss'],
+        extensions: ['.jsx', '.js', '.coffee', '.ts', '.tsx', '.scss'],
         alias: {
-          app: path.join(__dirname, '../app'),
-          jsapp: path.join(__dirname, '../jsapp'),
+          '#': path.join(__dirname, '../jsapp/js'),
           js: path.join(__dirname, '../jsapp/js'),
           scss: path.join(__dirname, '../jsapp/scss'),
-          utils: path.join(__dirname, '../jsapp/js/utils'),
         },
       },
-    });
+    })
     config.module.rules.push(
       {
         test: /\.scss$/,
@@ -60,30 +63,31 @@ module.exports = {
           },
           'sass-loader',
         ],
-      }
-    );
+      },
+    )
 
     // Build speed improvements
-    applySpeedTweaks(config);
+    applySpeedTweaks(config)
 
     // Print speed measurement if env variable MEASURE is set
     if (process.env.MEASURE) {
-      const smp = new SpeedMeasurePlugin();
-      return smp.wrap(config);
+      const smp = new SpeedMeasurePlugin()
+      return smp.wrap(config)
     }
-    return config;
+    return config
   },
   managerWebpack: async (config) => {
     // Build speed improvements
-    applySpeedTweaks(config);
-
+    applySpeedTweaks(config)
     if (process.env.MEASURE) {
-      const smp = new SpeedMeasurePlugin();
-      return smp.wrap(config);
+      const smp = new SpeedMeasurePlugin()
+      return smp.wrap(config)
     }
-    return config;
+    return config
   },
-};
+  docs: {},
+  staticDirs: ['../msw-mocks'],
+}
 
 /// Apply some customizations to the config, intended to decrease build time
 function applySpeedTweaks(config) {
@@ -92,18 +96,16 @@ function applySpeedTweaks(config) {
   //   that relies on filesystem case-insensitivity in file imports.
   // - We can let CI detect this instead, or use ESLint.
   //   'import/no-unresolved': [2, { caseSensitive: true }]
-  config.plugins = config.plugins.filter(
-    (plugin) => plugin.constructor.name !== 'CaseSensitivePathsPlugin'
-  );
+  config.plugins = config.plugins.filter((plugin) => plugin.constructor.name !== 'CaseSensitivePathsPlugin')
 
   // Use swc to make the Terser step faster
   if (config.mode === 'production') {
-    const TerserPlugin = require('terser-webpack-plugin');
+    const TerserPlugin = require('terser-webpack-plugin')
     config.optimization.minimizer = [
       new TerserPlugin({
         minify: TerserPlugin.swcMinify,
         terserOptions: {},
       }),
-    ];
+    ]
   }
 }

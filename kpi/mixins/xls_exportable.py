@@ -10,14 +10,11 @@ import xlsxwriter
 
 from formpack.utils.kobo_locking import (
     revert_kobo_lock_structure,
-    strip_kobo_locking_profile,
 )
 
 
 class XlsExportableMixin:
-    def ordered_xlsform_content(self,
-                                kobo_specific_types=False,
-                                append=None):
+    def ordered_xlsform_content(self, kobo_specific_types=False, append=None):
         # currently, this method depends on "FormpackXLSFormUtilsMixin"
         content = copy.deepcopy(self.content)
         if append:

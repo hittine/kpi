@@ -1,0 +1,7 @@
+@use 'scss/colors';
+@use 'scss/mixins';
+
+.root {
+  @include mixins.centerRowFlex;
+  gap: 10px;
+}

@@ -1,7 +1,4 @@
-@use 'scss/sizes';
-@use '~kobo-common/src/styles/colors';
-@use 'scss/variables';
-@use 'scss/libs/mdl';
+@use 'scss/colors';
 @use 'scss/z-indexes';
 
 $projects-table-min-width: 820px;
@@ -13,18 +10,6 @@ $projects-table-min-width: 820px;
   flex-direction: column;
   background-color: colors.$kobo-white;
   overflow: auto;
-
-  &.fullscreen {
-    position: fixed;
-    z-index: z-indexes.$z-fullscreen;
-    border: sizes.$x5 solid mdl.$root-background;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    width: 100%;
-    height: 100%;
-  }
 }
 
 .header {
@@ -45,12 +30,12 @@ $projects-table-min-width: 820px;
   :global {
     // The loading message of the ProjectsTable component
     .loading:first-of-type {
-      margin: sizes.$x40 auto;
+      margin: 40px auto;
     }
 
     // The loading spinner of the react-infinite-scroller plugin
     .loading:last-of-type {
-      padding: sizes.$x10 0 sizes.$x20;
+      padding: 10px 0 20px;
     }
   }
 }

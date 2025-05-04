@@ -1,59 +1,72 @@
-import React from 'react';
-import InfiniteScroll from 'react-infinite-scroller';
-import LoadingSpinner from 'js/components/common/loadingSpinner';
-import ProjectsTableRow from './projectsTableRow';
-import type {
-  ProjectFieldName,
-  OrderDirection,
-} from 'js/projects/projectViews/constants';
-import ProjectsTableHeader from './projectsTableHeader';
-import type {AssetResponse, ProjectViewAsset} from 'js/dataInterface';
-import styles from './projectsTable.module.scss';
-import rowStyles from './projectsTableRow.module.scss';
-import classNames from 'classnames';
+import React from 'react'
 
-const SCROLL_PARENT_ID = 'projects-table-is-using-infinite_scroll-successfully';
+import cx from 'classnames'
+import InfiniteScroll from 'react-infinite-scroller'
+import LoadingSpinner from '#/components/common/loadingSpinner'
+import type { AssetResponse, ProjectViewAsset } from '#/dataInterface'
+import type { OrderDirection, ProjectFieldName } from '#/projects/projectViews/constants'
+import styles from './projectsTable.module.scss'
+import ProjectsTableHeader from './projectsTableHeader'
+import ProjectsTableRow from './projectsTableRow'
+import rowStyles from './projectsTableRow.module.scss'
+
+const SCROLL_PARENT_ID = 'projects-table-is-using-infinite_scroll-successfully'
 
 export interface ProjectsTableOrder {
-  fieldName: ProjectFieldName;
-  direction: OrderDirection;
+  fieldName?: ProjectFieldName
+  direction?: OrderDirection
 }
 
 interface ProjectsTableProps {
-  isLoading?: boolean;
+  isLoading?: boolean
   /** To display contextual empty message when zero assets. */
-  emptyMessage?: string;
-  assets: Array<AssetResponse | ProjectViewAsset>;
+  emptyMessage?: string
+  assets: Array<AssetResponse | ProjectViewAsset>
   /** Renders the columns for highlighted fields in some fancy way. */
-  highlightedFields: ProjectFieldName[];
-  visibleFields: ProjectFieldName[];
-  order: ProjectsTableOrder;
+  highlightedFields: ProjectFieldName[]
+  visibleFields: ProjectFieldName[]
+  /** The fields that have ability to change the order of data. */
+  orderableFields: ProjectFieldName[]
+  order: ProjectsTableOrder
   /** Called when user selects a column for odering. */
-  onChangeOrderRequested: (order: ProjectsTableOrder) => void;
-  onHideFieldRequested: (fieldName: ProjectFieldName) => void;
+  onChangeOrderRequested: (order: ProjectsTableOrder) => void
+  onHideFieldRequested: (fieldName: ProjectFieldName) => void
   /** Used for infinite scroll. */
-  onRequestLoadNextPage: () => void;
+  onRequestLoadNextPage: () => void
   /** If there are more results to be loaded. */
-  hasMorePages: boolean;
+  hasMorePages: boolean
+  /** A list of uids */
+  selectedRows: string[]
+  /** Called when user selects a row (by clicking its checkbox) */
+  onRowsSelected: (uids: string[]) => void
 }
 
 /**
- * Displays a table of assets.
+ * Displays a table of assets. Works with `survey` type.
  */
 export default function ProjectsTable(props: ProjectsTableProps) {
   // We ensure name is always visible:
-  const safeVisibleFields = Array.from(
-    new Set(props.visibleFields).add('name')
-  );
+  const safeVisibleFields = Array.from(new Set(props.visibleFields).add('name'))
+
+  const onRowSelectionChange = (rowUid: string, isSelected: boolean) => {
+    const uidsSet = new Set(props.selectedRows)
+    if (isSelected) {
+      uidsSet.add(rowUid)
+    } else {
+      uidsSet.delete(rowUid)
+    }
+    props.onRowsSelected(Array.from(uidsSet))
+  }
 
   return (
     // NOTE: react-infinite-scroller wants us to use refs, but there seems to
     // be some kind of a bug - either in their code or their typings. Thus we
     // are going to use OlDsChOoL `id` :shrug:.
-    <div className={styles.root} id={SCROLL_PARENT_ID}>
+    <div className={styles.root} id={SCROLL_PARENT_ID} tabIndex={-1}>
       <ProjectsTableHeader
         highlightedFields={props.highlightedFields}
         visibleFields={safeVisibleFields}
+        orderableFields={props.orderableFields}
         order={props.order}
         onChangeOrderRequested={props.onChangeOrderRequested}
         onHideFieldRequested={props.onHideFieldRequested}
@@ -63,7 +76,7 @@ export default function ProjectsTable(props: ProjectsTableProps) {
         {props.isLoading && <LoadingSpinner />}
 
         {!props.isLoading && props.assets.length === 0 && (
-          <div className={classNames(rowStyles.row, rowStyles.rowTypeMessage)}>
+          <div className={cx(rowStyles.row, rowStyles.rowTypeMessage)}>
             {props.emptyMessage || t('There are no projects to display.')}
           </div>
         )}
@@ -76,7 +89,7 @@ export default function ProjectsTable(props: ProjectsTableProps) {
           loader={
             // We want to hide the plugin spinner when we already display
             // the main one - this ensures no double spinners
-            props.isLoading ? <></> : <LoadingSpinner hideMessage key='0' />
+            props.isLoading ? <></> : <LoadingSpinner message={false} key='0' />
           }
           useWindow={false}
           initialLoad={false}
@@ -86,11 +99,13 @@ export default function ProjectsTable(props: ProjectsTableProps) {
               asset={asset}
               highlightedFields={props.highlightedFields}
               visibleFields={safeVisibleFields}
+              isSelected={props.selectedRows.includes(asset.uid)}
+              onSelectRequested={(isSelected: boolean) => onRowSelectionChange(asset.uid, isSelected)}
               key={asset.uid}
             />
           ))}
         </InfiniteScroll>
       </div>
     </div>
-  );
+  )
 }

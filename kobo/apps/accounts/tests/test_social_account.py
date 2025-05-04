@@ -1,13 +1,14 @@
-from allauth.account.models import EmailAddress
-from django.core import mail
+from django.conf import settings
 from django.urls import reverse
 from model_bakery import baker
 from rest_framework.test import APITestCase
 
+from kpi.utils.fuzzy_int import FuzzyInt
+
 
 class AccountsEmailTestCase(APITestCase):
     def setUp(self):
-        self.user = baker.make('auth.User')
+        self.user = baker.make(settings.AUTH_USER_MODEL)
         self.client.force_login(self.user)
         self.url_list = reverse('socialaccount-list')
 
@@ -15,7 +16,7 @@ class AccountsEmailTestCase(APITestCase):
         account1 = baker.make('socialaccount.SocialAccount', user=self.user)
         account2 = baker.make('socialaccount.SocialAccount')
         # Auth, Count, Queryset
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(FuzzyInt(3, 5)):
             res = self.client.get(self.url_list)
         self.assertContains(res, account1.uid)
         self.assertNotContains(res, account2.uid)

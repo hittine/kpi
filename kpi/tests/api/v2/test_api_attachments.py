@@ -1,18 +1,25 @@
-# coding: utf-8
-import json
-import os
-import random
-import string
 import uuid
+from unittest.mock import patch
 
-from django.conf import settings
-from django.contrib.auth.models import User
 from django.http import QueryDict
 from django.urls import reverse
 from rest_framework import status
+from rest_framework.exceptions import ErrorDetail
 
+from kobo.apps.kobo_auth.shortcuts import User
+from kobo.apps.openrosa.apps.logger.models.attachment import Attachment
+from kobo.apps.trash_bin.models.attachment import AttachmentTrash
+from kpi.constants import (
+    PERM_CHANGE_SUBMISSIONS,
+    PERM_PARTIAL_SUBMISSIONS,
+    PERM_VIEW_SUBMISSIONS,
+)
+from kpi.deployment_backends.kc_access.storage import (
+    default_kobocat_storage as default_storage,
+)
 from kpi.models import Asset
 from kpi.tests.base_test_case import BaseAssetTestCase
+from kpi.tests.utils.mock import guess_type_mock
 from kpi.urls.router_api_v2 import URL_NAMESPACE as ROUTER_URL_NAMESPACE
 
 
@@ -40,39 +47,75 @@ class AttachmentApiTests(BaseAssetTestCase):
         self.__add_submissions()
 
         self.asset.deployment.set_namespace(self.URL_NAMESPACE)
-        self.submission_list_url = self.asset.deployment.submission_list_url
+        self.submission_list_url = reverse(
+            self._get_endpoint('submission-list'),
+            kwargs={'format': 'json', 'parent_lookup_asset': self.asset.uid},
+        )
         self._deployment = self.asset.deployment
+        self.submission_id = self.submissions[0]['_id']
 
     def __add_submissions(self):
         submissions = []
         v_uid = self.asset.latest_deployed_version.uid
 
         _uuid = str(uuid.uuid4())
-        submission = {
+        submission_1 = {
             '__version__': v_uid,
-            'q1': 'audio_conversion_test_clip.mp4',
+            'q1': 'audio_conversion_test_clip.3gp',
             'q2': 'audio_conversion_test_image.jpg',
             '_uuid': _uuid,
             'meta/instanceID': f'uuid:{_uuid}',
             '_attachments': [
                 {
-                    'id': 1,
-                    'download_url': 'http://testserver/someuser/audio_conversion_test_clip.mp4',
-                    'filename': 'someuser/audio_conversion_test_clip.mp4',
-                    'mimetype': 'video/mp4',
+                    'download_url': 'http://testserver/someuser/audio_conversion_test_clip.3gp',
+                    'filename': 'someuser/audio_conversion_test_clip.3gp',
+                    'mimetype': 'video/3gpp',
                 },
                 {
-                    'id': 2,
                     'download_url': 'http://testserver/someuser/audio_conversion_test_image.jpg',
                     'filename': 'someuser/audio_conversion_test_image.jpg',
                     'mimetype': 'image/jpeg',
                 },
             ],
-            '_submitted_by': 'someuser'
+            '_submitted_by': 'someuser',
         }
-        submissions.append(submission)
-        self.asset.deployment.mock_submissions(submissions)
+        submission_2 = {
+            '__version__': v_uid,
+            'q1': 'audio_conversion_test_clip.3gp',
+            'q2': 'audio_conversion_test_image.jpg',
+            '_uuid': _uuid,
+            'meta/instanceID': 'uuid:test_uuid',
+            '_attachments': [
+                {
+                    'download_url': (
+                        'http://testserver/someuser/audio_conversion_test_clip.3gp'
+                    ),
+                    'filename': 'someuser/audio_conversion_test_clip.3gp',
+                    'mimetype': 'video/3gpp',
+                },
+                {
+                    'download_url': (
+                        'http://testserver/someuser/audio_conversion_test_image.jpg'
+                    ),
+                    'filename': 'someuser/audio_conversion_test_image.jpg',
+                    'mimetype': 'image/jpeg',
+                },
+            ],
+            '_submitted_by': 'anotheruser',
+        }
+        submissions.extend([submission_1, submission_2])
+
+        with patch('mimetypes.guess_type') as guess_mock:
+            guess_mock.side_effect = guess_type_mock
+            self.asset.deployment.mock_submissions(submissions)
+
         self.submissions = submissions
+
+        attachments = Attachment.objects.filter(
+            xform_id=self.asset.deployment.xform_id,
+            instance_id=self.submissions[0]['_id'],
+        )
+        self.attachment_uids = list(attachments.values_list('uid', flat=True))
 
     def test_convert_mp4_to_mp3(self):
         query_dict = QueryDict('', mutable=True)
@@ -87,7 +130,7 @@ class AttachmentApiTests(BaseAssetTestCase):
                 self._get_endpoint('attachment-list'),
                 kwargs={
                     'parent_lookup_asset': self.asset.uid,
-                    'parent_lookup_data': 1,
+                    'parent_lookup_data': self.submission_id,
                 },
             ),
             querystring=query_dict.urlencode()
@@ -110,7 +153,7 @@ class AttachmentApiTests(BaseAssetTestCase):
                 self._get_endpoint('attachment-list'),
                 kwargs={
                     'parent_lookup_asset': self.asset.uid,
-                    'parent_lookup_data': 1,
+                    'parent_lookup_data': self.submission_id,
                 },
             ),
             querystring=query_dict.urlencode()
@@ -134,7 +177,7 @@ class AttachmentApiTests(BaseAssetTestCase):
                 self._get_endpoint('attachment-list'),
                 kwargs={
                     'parent_lookup_asset': self.asset.uid,
-                    'parent_lookup_data': 1,
+                    'parent_lookup_data': self.submission_id,
                 },
             ),
             querystring=query_dict.urlencode()
@@ -142,21 +185,22 @@ class AttachmentApiTests(BaseAssetTestCase):
 
         response = self.client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert response['Content-Type'] == 'video/mp4'
+        assert response['Content-Type'] == 'video/3gpp'
 
     def test_get_attachment_with_id(self):
+        attachment_id = self.submissions[0]['_attachments'][0]['id']
         url = reverse(
             self._get_endpoint('attachment-detail'),
             kwargs={
                 'parent_lookup_asset': self.asset.uid,
-                'parent_lookup_data': 1,
-                'pk': 1,
+                'parent_lookup_data': self.submission_id,
+                'pk': attachment_id,
             },
         )
 
         response = self.client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert response['Content-Type'] == 'video/mp4'
+        assert response['Content-Type'] == 'video/3gpp'
 
     def test_duplicate_attachment_with_submission(self):
         # Grab the original submission and attachment
@@ -171,18 +215,20 @@ class AttachmentApiTests(BaseAssetTestCase):
         )
         response = self.client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert response['Content-Type'] == 'video/mp4'
+        assert response['Content-Type'] == 'video/3gpp'
         original_file = response.data
 
         # Duplicate the submission
-        duplicate_url = reverse(
-            self._get_endpoint('submission-duplicate'),
-            kwargs={
-                'parent_lookup_asset': self.asset.uid,
-                'pk': submission['_id'],
-            },
-        )
-        response = self.client.post(duplicate_url, {'format': 'json'})
+        with patch('mimetypes.guess_type') as guess_mock:
+            guess_mock.side_effect = guess_type_mock
+            duplicate_url = reverse(
+                self._get_endpoint('submission-duplicate'),
+                kwargs={
+                    'parent_lookup_asset': self.asset.uid,
+                    'pk': submission['_id'],
+                },
+            )
+            response = self.client.post(duplicate_url, {'format': 'json'})
         duplicate_submission = response.data
 
         # Increment the max attachment id of the original submission to get the
@@ -193,17 +239,19 @@ class AttachmentApiTests(BaseAssetTestCase):
             kwargs={
                 'parent_lookup_asset': self.asset.uid,
                 'parent_lookup_data': duplicate_submission['_id'],
-                'pk': max_attachment_id + 1,
+                'pk': max_attachment_id + 3,
             },
         )
 
         response = self.client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert response['Content-Type'] == 'video/mp4'
+        assert response['Content-Type'] == 'video/3gpp'
         duplicate_file = response.data
 
         # Ensure that the files are the same
-        assert original_file == duplicate_file
+        with default_storage.open(str(original_file), 'rb') as of:
+            with default_storage.open(str(duplicate_file), 'rb') as df:
+                assert of.read() == df.read()
 
     def test_xpath_not_found(self):
         query_dict = QueryDict('', mutable=True)
@@ -218,7 +266,7 @@ class AttachmentApiTests(BaseAssetTestCase):
                 self._get_endpoint('attachment-list'),
                 kwargs={
                     'parent_lookup_asset': self.asset.uid,
-                    'parent_lookup_data': 1,
+                    'parent_lookup_data': self.submission_id,
                 },
             ),
             querystring=query_dict.urlencode()
@@ -242,7 +290,7 @@ class AttachmentApiTests(BaseAssetTestCase):
                 self._get_endpoint('attachment-list'),
                 kwargs={
                     'parent_lookup_asset': self.asset.uid,
-                    'parent_lookup_data': 1,
+                    'parent_lookup_data': self.submission_id,
                 },
             ),
             querystring=query_dict.urlencode()
@@ -260,10 +308,157 @@ class AttachmentApiTests(BaseAssetTestCase):
             kwargs={
                 'parent_lookup_asset': self.asset.uid,
                 'parent_lookup_data': submission['_uuid'],
-                'pk': 1,
+                'pk': submission['_attachments'][0]['id'],
             },
         )
 
         response = self.client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert response['Content-Type'] == 'video/mp4'
+        assert response['Content-Type'] == 'video/3gpp'
+
+    def test_thumbnail_creation_on_demand(self):
+        submission = self.submissions[0]
+        url = reverse(
+            self._get_endpoint('attachment-detail'),
+            kwargs={
+                'parent_lookup_asset': self.asset.uid,
+                'parent_lookup_data': submission['_id'],
+                'pk': submission['_attachments'][1]['id'],
+            },
+        )
+        response = self.client.get(url)
+        filename = response.data.name.replace('.jpg', '')
+        thumbnail = f'{filename}-small.jpg'
+        # Thumbs should not exist yet
+        self.assertFalse(default_storage.exists(thumbnail))
+
+        thumb_url = reverse(
+            self._get_endpoint('attachment-thumb'),
+            args=(
+                self.asset.uid,
+                submission['_id'],
+                submission['_attachments'][1]['id'],
+                'small'
+            ),
+        )
+        self.client.get(thumb_url)
+        # Thumbs should exist
+        self.assertTrue(default_storage.exists(thumbnail))
+
+    def test_bulk_delete_attachments_from_submission(self):
+        submission = self.submissions[0]
+        response = self.client.delete(
+            reverse(
+                self._get_endpoint('attachment-bulk-destroy'),
+                kwargs={
+                    'parent_lookup_asset': self.asset.uid,
+                    'parent_lookup_data': submission['_id'],
+                },
+            )
+        )
+
+        deleted_attachments = Attachment.objects.filter(uid__in=self.attachment_uids)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {'message': '2 attachments deleted'}
+        for attachment in deleted_attachments:
+            assert attachment.status == 'pending-delete'
+
+    def test_bulk_delete_attachments_from_submission_unauthenticated(self):
+        self.client.logout()
+        submission = self.submissions[0]
+        response = self.client.delete(
+            reverse(
+                self._get_endpoint('attachment-bulk-destroy'),
+                kwargs={
+                    'parent_lookup_asset': self.asset.uid,
+                    'parent_lookup_data': submission['_id'],
+                },
+            )
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.data == {
+            'detail': ErrorDetail(string='Not found.', code='not_found')
+        }
+
+    def test_bulk_delete_attachments_from_submission_edit_permission(self):
+        user_edit_perms = User.objects.create_user(
+            username='user_edit_perms', password='user_edit_perms'
+        )
+        user_edit_perms.user_permissions.clear()
+        self.asset.assign_perm(user_edit_perms, PERM_CHANGE_SUBMISSIONS)
+        self.client.logout()
+        self.client.force_login(user_edit_perms)
+        submission = self.submissions[0]
+        response = self.client.delete(
+            reverse(
+                self._get_endpoint('attachment-bulk-destroy'),
+                kwargs={
+                    'parent_lookup_asset': self.asset.uid,
+                    'parent_lookup_data': submission['_id'],
+                },
+            )
+        )
+        deleted_attachments = Attachment.objects.filter(uid__in=self.attachment_uids)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {'message': '2 attachments deleted'}
+        for attachment in deleted_attachments:
+            assert attachment.status == 'pending-delete'
+
+    def test_bulk_delete_attachments_from_submission_with_partial_perms_accepted(self):
+        user_partial_perms = User.objects.create_user(
+            username='user_partial_perms', password='user_partial_perms'
+        )
+        self.client.force_login(user_partial_perms)
+        partial_perms = {PERM_CHANGE_SUBMISSIONS: [{'_submitted_by': 'anotheruser'}]}
+
+        self.asset.assign_perm(
+            user_partial_perms,
+            PERM_PARTIAL_SUBMISSIONS,
+            partial_perms=partial_perms,
+        )
+        initial_trash_count = AttachmentTrash.objects.count()
+        submission = self.submissions[1]
+        response = self.client.delete(
+            reverse(
+                self._get_endpoint('attachment-bulk-destroy'),
+                kwargs={
+                    'parent_lookup_asset': self.asset.uid,
+                    'parent_lookup_data': submission['_id'],
+                },
+            )
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {'message': '2 attachments deleted'}
+        assert AttachmentTrash.objects.count() == initial_trash_count + 2
+
+    def test_bulk_delete_attachments_from_submission_with_partial_perms_denied(self):
+        user_partial_perms = User.objects.create_user(
+            username='user_partial_perms', password='user_partial_perms'
+        )
+        self.client.force_login(user_partial_perms)
+        partial_perms = {PERM_VIEW_SUBMISSIONS: [{'_submitted_by': 'anotheruser'}]}
+
+        self.asset.assign_perm(
+            user_partial_perms,
+            PERM_PARTIAL_SUBMISSIONS,
+            partial_perms=partial_perms,
+        )
+        submission = self.submissions[1]
+        response = self.client.delete(
+            reverse(
+                self._get_endpoint('attachment-bulk-destroy'),
+                kwargs={
+                    'parent_lookup_asset': self.asset.uid,
+                    'parent_lookup_data': submission['_id'],
+                },
+            )
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.data == {
+            'detail': ErrorDetail(
+                string='You do not have permission to perform this action.',
+                code='permission_denied',
+            )
+        }

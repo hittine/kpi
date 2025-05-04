@@ -1,10 +1,11 @@
 # coding: utf-8
-from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from rest_framework import exceptions, status
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from kobo.apps.kobo_auth.shortcuts import User
 
 
 class TokenView(APIView):
@@ -30,13 +31,16 @@ class TokenView(APIView):
         return user
 
     def get(self, request, *args, **kwargs):
-        """ Retrieve an existing token only """
+        """ Retrieve an existing token, or create and retrieve a new one """
         user = self._which_user(request)
-        token = get_object_or_404(Token, user=user)
+        token, _ = Token.objects.get_or_create(user=user)
         return Response({'token': token.key})
 
     def post(self, request, *args, **kwargs):
-        """ Return a token, creating a new one if none exists """
+        """
+        Return a token, creating a new one if none exists. Unnecessary now that
+        GET also creates a token, but left here for API stability
+        """
         user = self._which_user(request)
         token, created = Token.objects.get_or_create(user=user)
         return Response(

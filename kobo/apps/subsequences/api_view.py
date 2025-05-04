@@ -1,22 +1,30 @@
-import json
+from copy import deepcopy
 
+from django.shortcuts import get_object_or_404
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError as SchemaValidationError
-from kobo.apps.subsequences.models import SubmissionExtras
-from kpi.models import Asset
-from kpi.permissions import SubmissionPermission
-from kpi.views.environment import _check_asr_mt_access_for_user
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.exceptions import ValidationError as APIValidationError
 from rest_framework.response import Response
-from rest_framework.views import APIView
+
+
+from kobo.apps.openrosa.apps.logger.models import Instance
+
+from kobo.apps.audit_log.base_views import AuditLoggedApiView
+from kobo.apps.audit_log.models import AuditType
+
+from kobo.apps.subsequences.models import SubmissionExtras
+from kobo.apps.subsequences.utils.deprecation import get_sanitized_dict_keys
+from kpi.models import Asset
+from kpi.permissions import SubmissionPermission
+from kpi.views.environment import check_asr_mt_access_for_user
 
 
 def _check_asr_mt_access_if_applicable(user, posted_data):
     # This is for proof-of-concept testing and will be replaced with proper
     # quotas and accounting
     MAGIC_STATUS_VALUE = 'requested'
-    user_has_access = _check_asr_mt_access_for_user(user)
+    user_has_access = check_asr_mt_access_for_user(user)
     if user_has_access:
         return True
     # Oops, no access. But did they request ASR/MT in the first place?
@@ -48,15 +56,26 @@ def _check_asr_mt_access_if_applicable(user, posted_data):
                     raise PermissionDenied('ASR/MT features are not available')
 
 
-class AdvancedSubmissionView(APIView):
-    permission_classes = [SubmissionPermission]
+class AdvancedSubmissionPermission(SubmissionPermission):
+    """
+    Regular `SubmissionPermission` maps POST to `add_submissions`, but
+    `change_submissions` should be required here
+    """
+    perms_map = deepcopy(SubmissionPermission.perms_map)
+    perms_map['POST'] = ['%(app_label)s.change_%(model_name)s']
+
+
+class AdvancedSubmissionView(AuditLoggedApiView):
+    permission_classes = [AdvancedSubmissionPermission]
     queryset = Asset.objects.all()
     asset = None
+    log_type = AuditType.PROJECT_HISTORY
 
     def initial(self, request, asset_uid, *args, **kwargs):
         # This must be done first in order to work with SubmissionPermission
         # which typically expects to be a nested view under Asset
         self.asset = self.get_object(asset_uid)
+        request._request.asset = self.asset
         return super().initial(request, asset_uid, *args, **kwargs)
 
     def get_object(self, uid):
@@ -69,6 +88,8 @@ class AdvancedSubmissionView(APIView):
             s_uuid = request.data.get('submission')
         else:
             s_uuid = request.query_params.get('submission')
+        if s_uuid is not None:
+            get_object_or_404(Instance, uuid=s_uuid)
         return get_submission_processing(self.asset, s_uuid)
 
     def post(self, request, asset_uid, format=None):
@@ -78,6 +99,8 @@ class AdvancedSubmissionView(APIView):
             validate(posted_data, schema)
         except SchemaValidationError as err:
             raise APIValidationError({'error': err})
+        # ensure the submission exists
+        get_object_or_404(Instance, uuid=posted_data['submission'])
 
         _check_asr_mt_access_if_applicable(request.user, posted_data)
 
@@ -87,8 +110,14 @@ class AdvancedSubmissionView(APIView):
 
 def get_submission_processing(asset, s_uuid):
     try:
-        submission = asset.submission_extras.get(submission_uuid=s_uuid)
-        return Response(submission.content)
+        submission_extra = asset.submission_extras.get(submission_uuid=s_uuid)
+
+        # TODO delete "if" statement below when every asset is repopulated with
+        #  `xpath` instead of `qpath`.
+        if content := get_sanitized_dict_keys(submission_extra.content, asset):
+            submission_extra.content = content
+
+        return Response(submission_extra.content)
     except SubmissionExtras.DoesNotExist:
         # submission might exist but no SubmissionExtras object has been created
         return Response({'info': f'nothing found for submission: {s_uuid}'})

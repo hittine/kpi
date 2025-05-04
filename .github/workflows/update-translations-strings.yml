@@ -5,12 +5,12 @@ on:
   pull_request:
     # https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#running-your-workflow-when-a-pull-request-merges
     types: [ closed ]
-    branches: [ main ]
+    branches: [ public-beta ]
 
 jobs:
   build:
     if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v2

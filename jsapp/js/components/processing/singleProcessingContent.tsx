@@ -1,12 +1,14 @@
-import React from 'react';
-import singleProcessingStore, {
-  SingleProcessingTabs,
-} from 'js/components/processing/singleProcessingStore';
-import TranscriptTabContent from 'js/components/processing/transcriptTabContent';
-import TranslationsTabContent from 'js/components/processing/translationsTabContent';
-import protectorHelpers from 'js/protector/protectorHelpers';
-import styles from './singleProcessingContent.module.scss';
-import classNames from 'classnames';
+import React from 'react'
+
+import classNames from 'classnames'
+import AnalysisTab from '#/components/processing/analysis/analysisTab.component'
+import { goToTabRoute, isProcessingRouteActive } from '#/components/processing/routes.utils'
+import singleProcessingStore from '#/components/processing/singleProcessingStore'
+import TranscriptTab from '#/components/processing/transcript/transcriptTab.component'
+import TranslationsTab from '#/components/processing/translations/translationsTab.component'
+import protectorHelpers from '#/protector/protectorHelpers'
+import { PROCESSING_ROUTES } from '#/router/routerConstants'
+import styles from './singleProcessingContent.module.scss'
 
 /**
  * Displays main content part of Single Processing route. It consists of tabs
@@ -14,18 +16,16 @@ import classNames from 'classnames';
  * tabs is built in separate components.
  */
 export default class SingleProcessingContent extends React.Component<{}> {
-  private unlisteners: Function[] = [];
+  private unlisteners: Function[] = []
 
   componentDidMount() {
-    this.unlisteners.push(
-      singleProcessingStore.listen(this.onSingleProcessingStoreChange, this)
-    );
+    this.unlisteners.push(singleProcessingStore.listen(this.onSingleProcessingStoreChange, this))
   }
 
   componentWillUnmount() {
     this.unlisteners.forEach((clb) => {
-      clb();
-    });
+      clb()
+    })
   }
 
   /**
@@ -33,32 +33,25 @@ export default class SingleProcessingContent extends React.Component<{}> {
    * the component re-render itself when the store changes :shrug:.
    */
   onSingleProcessingStoreChange() {
-    this.forceUpdate();
+    this.forceUpdate()
   }
 
   /** DRY wrapper for protector function. */
   safeExecute(callback: () => void) {
-    protectorHelpers.safeExecute(
-      singleProcessingStore.hasAnyUnsavedWork(),
-      callback
-    );
-  }
-
-  activateTab(tabName: SingleProcessingTabs) {
-    singleProcessingStore.activateTab(tabName);
+    protectorHelpers.safeExecute(singleProcessingStore.hasAnyUnsavedWork(), callback)
   }
 
   renderTabContent() {
-    switch (singleProcessingStore.getActiveTab()) {
-      case SingleProcessingTabs.Transcript:
-        return <TranscriptTabContent />;
-      case SingleProcessingTabs.Translations:
-        return <TranslationsTabContent />;
-      case SingleProcessingTabs.Analysis:
-        return null;
-      default:
-        return null;
+    if (isProcessingRouteActive(PROCESSING_ROUTES.TRANSCRIPT)) {
+      return <TranscriptTab />
     }
+    if (isProcessingRouteActive(PROCESSING_ROUTES.TRANSLATIONS)) {
+      return <TranslationsTab />
+    }
+    if (isProcessingRouteActive(PROCESSING_ROUTES.ANALYSIS)) {
+      return <AnalysisTab />
+    }
+    return null
   }
 
   render() {
@@ -68,14 +61,9 @@ export default class SingleProcessingContent extends React.Component<{}> {
           <li
             className={classNames({
               [styles.tab]: true,
-              [styles.activeTab]:
-                singleProcessingStore.getActiveTab() ===
-                SingleProcessingTabs.Transcript,
+              [styles.activeTab]: isProcessingRouteActive(PROCESSING_ROUTES.TRANSCRIPT),
             })}
-            onClick={this.safeExecute.bind(
-              this,
-              this.activateTab.bind(this, SingleProcessingTabs.Transcript)
-            )}
+            onClick={this.safeExecute.bind(this, () => goToTabRoute(PROCESSING_ROUTES.TRANSCRIPT))}
           >
             {t('Transcript')}
           </li>
@@ -83,16 +71,9 @@ export default class SingleProcessingContent extends React.Component<{}> {
           <li
             className={classNames({
               [styles.tab]: true,
-              [styles.activeTab]:
-                singleProcessingStore.getActiveTab() ===
-                SingleProcessingTabs.Translations,
-              [styles.disabledTab]:
-                singleProcessingStore.getTranscript() === undefined,
+              [styles.activeTab]: isProcessingRouteActive(PROCESSING_ROUTES.TRANSLATIONS),
             })}
-            onClick={this.safeExecute.bind(
-              this,
-              this.activateTab.bind(this, SingleProcessingTabs.Translations)
-            )}
+            onClick={this.safeExecute.bind(this, () => goToTabRoute(PROCESSING_ROUTES.TRANSLATIONS))}
           >
             {t('Translations')}
           </li>
@@ -100,15 +81,9 @@ export default class SingleProcessingContent extends React.Component<{}> {
           <li
             className={classNames({
               [styles.tab]: true,
-              [styles.activeTab]:
-                singleProcessingStore.getActiveTab() ===
-                SingleProcessingTabs.Analysis,
-              [styles.disabledTab]: true,
+              [styles.activeTab]: isProcessingRouteActive(PROCESSING_ROUTES.ANALYSIS),
             })}
-            onClick={this.safeExecute.bind(
-              this,
-              this.activateTab.bind(this, SingleProcessingTabs.Analysis)
-            )}
+            onClick={this.safeExecute.bind(this, () => goToTabRoute(PROCESSING_ROUTES.ANALYSIS))}
           >
             {t('Analysis')}
           </li>
@@ -116,6 +91,6 @@ export default class SingleProcessingContent extends React.Component<{}> {
 
         <section className={styles.body}>{this.renderTabContent()}</section>
       </section>
-    );
+    )
   }
 }

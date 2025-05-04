@@ -8,10 +8,10 @@ $rowView = require './view.row'
 $baseView = require './view.pluggedIn.backboneView'
 $viewUtils = require './view.utils'
 alertify = require 'alertifyjs'
-isAssetLockable = require('js/components/locking/lockingUtils').isAssetLockable
-hasAssetRestriction = require('js/components/locking/lockingUtils').hasAssetRestriction
-LOCKING_RESTRICTIONS = require('js/components/locking/lockingConstants').LOCKING_RESTRICTIONS
-LOCKING_UI_CLASSNAMES = require('js/components/locking/lockingConstants').LOCKING_UI_CLASSNAMES
+isAssetLockable = require('#/components/locking/lockingUtils').isAssetLockable
+hasAssetRestriction = require('#/components/locking/lockingUtils').hasAssetRestriction
+LockingRestrictionName = require('#/components/locking/lockingConstants').LockingRestrictionName
+LOCKING_UI_CLASSNAMES = require('#/components/locking/lockingConstants').LOCKING_UI_CLASSNAMES
 
 module.exports = do ->
   surveyApp = {}
@@ -333,7 +333,7 @@ module.exports = do ->
       # hide all ways of adding new questions
       if (
         @isLockable() and
-        @hasRestriction(LOCKING_RESTRICTIONS.question_add.name)
+        @hasRestriction(LockingRestrictionName.question_add)
       )
         # "+" buttons
         @$('.js-add-row-button').addClass(LOCKING_UI_CLASSNAMES.HIDDEN)
@@ -638,7 +638,7 @@ module.exports = do ->
         @features.multipleQuestions and
         not (
           @isLockable() and
-          @hasRestriction(LOCKING_RESTRICTIONS.question_order_edit.name)
+          @hasRestriction(LockingRestrictionName.question_order_edit)
         )
       )
         @activateSortable()
@@ -734,13 +734,13 @@ module.exports = do ->
       $header = $et.closest('.card__header')
       card_hover_text = do ->
         if buttonName is 'settings'
-          t("[button triggers] Settings")
+          t("Settings")
         else if buttonName is 'delete'
-          t("[button triggers] Delete Question")
+          t("Delete Question")
         else if buttonName is 'duplicate'
-          t("[button triggers] Duplicate Question")
+          t("Duplicate Question")
         else if buttonName is 'add-to-library'
-          t("[button triggers] Add Question to Library")
+          t("Add Question to Library")
 
       $header.find('.card__header--shade').eq(0).children('span').eq(0)
         .attr('data-card-hover-text', card_hover_text)

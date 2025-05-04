@@ -13,8 +13,10 @@ class EmailContent(models.Model):
     ##user## - The username of the user
     """
     class EmailOptions(models.TextChoices):
-        ACTIVATION_EMAIL = 'email_confirmation_signup_message', \
-            'Email Confirmation Signup Message'
+        ACTIVATION_EMAIL = (
+            'email_confirmation_signup_message',
+            'Email Confirmation Signup Message',
+        )
 
     class SectionOptions(models.TextChoices):
         SUBJECT = 'subject', 'Subject'
@@ -83,6 +85,8 @@ class SocialAppCustomData(models.Model):
         primary_key=True,
         related_name="custom_data",
     )
+
+    is_public = models.BooleanField(default=False, help_text='Display social login on login page')
 
     def __str__(self):
         return f"{self.social_app.name} Custom Data"

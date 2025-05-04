@@ -1,5 +1,4 @@
-@use '~kobo-common/src/styles/colors';
-@use 'scss/sizes';
+@use 'scss/colors';
 @use 'scss/libs/_mdl';
 
 .account-settings {
@@ -8,12 +7,12 @@
   background: colors.$kobo-white;
   overflow-y: auto;
   position: relative;
-  padding-top: sizes.$x50;
+  padding-top: 50px;
 
   h4 {
     margin: 0;
     font-weight: 400;
-    color: colors.$kobo-gray-24;
+    color: colors.$kobo-gray-800;
   }
 
   .kobo-select {
@@ -27,10 +26,10 @@
     padding: 0;
 
     .form-modal__item--fields {
-      height: calc(100% - #{sizes.$x50});
+      height: calc(100% - #{50px});
       padding-right: 40px;
-      padding-left: sizes.$x50;
-      padding-bottom: sizes.$x30;
+      padding-left: 50px;
+      padding-bottom: 30px;
       overflow: auto;
 
       > *:last-child {margin-bottom: 20px;}
@@ -38,38 +37,18 @@
 
     .form-modal__item--username {
       min-height: 32px;
-      padding-left: sizes.$x50;
-
-      .account-box__initials {
-        display: inline-block;
-        vertical-align: middle;
-        margin-right: 15px;
-      }
-
-      h4 {
-        display: inline-block;
-        vertical-align: middle;
-        font-size: 16px;
-      }
+      padding-left: 50px;
     }
   }
 
   .account-settings__actions {
     position: absolute;
-    top: sizes.$x50;
+    top: 50px;
     right: 0;
 
     .account-settings-save:last-child {
-      margin-right: sizes.$x50;
+      margin-right: 50px;
     }
-
-    .account-settings-close {
-      padding: 0 12px;
-    }
-  }
-
-  .account-settings-link {
-    font-size: 0.85em;
   }
 
   .form-modal__item {
@@ -97,28 +76,13 @@
       width: 46%;
       float: left;
     }
-
-    &.form-modal__item--social {
-      clear: both;
-
-      > label {
-        position: relative;
-
-        &:not(:first-child) {
-          margin-top: sizes.$x5;
-        }
-
-        > i {
-          position: absolute;
-          font-size: 24px;
-          top: 4px;
-          left: 4px;
-        }
-
-        .text-box .text-box__input {
-          padding-left: 40px;
-        }
-      }
-    }
   }
+}
+
+.account-settings-social-row:not(:first-child) {
+  margin-top: 5px;
+}
+
+.anonymous-submission-notice {
+  margin-top: 12px;
 }

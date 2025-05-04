@@ -1,30 +1,35 @@
-@use '~kobo-common/src/styles/colors';
-@use "scss/_variables";
+@use 'scss/colors';
+@use 'scss/variables';
+@use 'scss/breakpoints';
+@use 'scss/mixins';
 
-@media screen and (min-width: 961px) {
-  .report-view {
-    padding: 0px 40px;
+.report-view {
+  padding: 12px;
+}
+
+.report-view__limit-message {
+  @include mixins.centerRowFlex;
+  gap: 10px;
+
+  p {
+    margin: 0;
   }
 }
 
-.form-view__cell--reportLimit {
-  padding-bottom: 16px;
-}
-
 .report-view__item {
-  border: 1px solid colors.$kobo-gray-92;
-  margin: 15px 0px;
+  border: 1px solid colors.$kobo-gray-300;
+  margin: 15px 0;
   background: colors.$kobo-white;
 }
 
 .report-view__itemHeading {
   padding: 10px 24px;
   border-left: 5px solid colors.$kobo-teal;
-  border-bottom: 1px solid colors.$kobo-gray-92;
+  border-bottom: 1px solid colors.$kobo-gray-300;
   position: relative;
 
   h2 {
-    margin: 0px;
+    margin: 0;
     margin-right: 60px;
     color: colors.$kobo-teal;
     font-size: 16px;
@@ -34,7 +39,7 @@
 
   .report-view__headingMeta {
     opacity: 0.6;
-    font-size: 11px;
+    font-size: 12px;
     margin-right: 60px;
 
     .type {
@@ -56,40 +61,33 @@
 
   table {
     width: 100%;
-    border: 0px;
-    margin: 20px 0px;
-    border-spacing: 0px;
+    border: 0;
+    margin: 20px 0;
+    border-spacing: 0;
 
     thead th {
-      margin: 0px;
+      margin: 0;
       padding: 8px;
-      background-color: colors.$kobo-gray-40;
+      background-color: colors.$kobo-gray-700;
       color: colors.$kobo-white;
       text-align: right;
       font-weight: normal;
       font-size: variables.$base-font-size;
 
       &:first-child {
-        text-align: left;
+        text-align: initial;
       }
     }
 
     tbody tr td {
-      border-bottom: 1px solid colors.$kobo-gray-65;
+      border-bottom: 1px solid colors.$kobo-gray-500;
       padding: 8px;
       text-align: right;
 
       &:first-child {
-        text-align: left;
+        text-align: initial;
       }
     }
-  }
-}
-
-@media screen and (min-width: 961px) {
-  .report-view__itemContent table {
-    width: 80%;
-    margin-left: 10%;
   }
 }
 
@@ -108,64 +106,30 @@
 
 // report buttons
 .form-view__reportButtons {
-  padding: 15px 0px;
-
-  button:not(.mdl-button--icon) {
-    text-transform: uppercase;
-    padding-left: 0px;
-  }
-
-  button {
-    &.report-button__edit,
-    &.report-button__settings {
-      overflow: visible;
-    }
-
-    &.report-button__expand,
-    &.report-button__print {
-      float: right;
-      margin-right: 0px;
-      margin-left: 8px;
-      overflow: visible;
-    }
-  }
+  @include mixins.centerRowFlex;
+  gap: 10px;
 
   + .form-view__cell--iframe {
     height: calc(100% - 60px);
   }
 }
 
-@media screen and (max-width: 999px) {
-  .form-view__reportButtons {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
+.form-view__report-buttons-left {
+  @include mixins.centerRowFlex;
+  gap: 5px;
+  flex: 1;
 }
 
-@media screen and (max-width: 767px) {
-  .form-view__reportButtons {
-    button.mdl-button {
-      font-size: 13px;
-    }
-
-    button.report-button__print {
-      display: none;
-    }
-
-    button.report-button__expand {
-      margin-left: 0px;
-      padding-left: 4px;
-      padding-right: 4px;
-    }
-  }
+.form-view__report-buttons-right {
+  @include mixins.centerRowFlex;
 }
 
 // report graph settings
 
-.graph-settings__charttype, .graph-settings__colors {
+.graph-settings__colors {
   padding: 20px 10px;
 
-  &:after {
+  &::after {
     content: '';
     clear: both;
     display: block;
@@ -175,15 +139,16 @@
     margin-bottom: 20px;
     display: block;
     font-weight: 400;
-    color: colors.$kobo-gray-40;
+    color: colors.$kobo-gray-700;
   }
 }
 
 .graph-settings__radio {
   text-align: center;
   background-size: auto 80%;
-  background-position: top center;
+  background-position: center 10px;
   background-repeat: no-repeat;
+  margin: 5px;
 
   input {
     display: none;
@@ -191,50 +156,50 @@
 
   label {
     border: 2px solid white;
+    border-radius: 6px;
     display: block;
     width: 100%;
     cursor: pointer;
   }
 
   input:checked + label {
-    border: 2px solid colors.$kobo-blue;
+    border-color: colors.$kobo-blue;
+  }
+
+  input:not(:checked):hover + label {
+    border-color: colors.$kobo-gray-400;
   }
 
   &--vertical {
-    background-image: url("~../../../img/chart-vertical.png");
+    background-image: url('~../../../img/chart-vertical.svg');
   }
 
   &--horizontal {
-    background-image: url("~../../../img/chart-horizontal.png");
+    background-image: url('~../../../img/chart-horizontal.svg');
   }
 
   &--donut {
-    background-image: url("~../../../img/chart-donut.png");
+    background-image: url('~../../../img/chart-donut.svg');
   }
 
   &--area {
-    background-image: url("~../../../img/chart-area.png");
+    background-image: url('~../../../img/chart-area.svg');
   }
 
   &--pie {
-    background-image: url("~../../../img/chart-pie.png");
+    background-image: url('~../../../img/chart-pie.svg');
   }
 
   &--line {
-    background-image: url("~../../../img/chart-line.png");
+    background-image: url('~../../../img/chart-line.svg');
   }
-}
 
-.graph-settings__charttype {
-  .graph-settings__radio {
-    width: 33%;
-    height: 100px;
-    margin-bottom: 20px;
-    float: left;
+  &--polar {
+    background-image: url('~../../../img/chart-polar.svg');
+  }
 
-    label {
-      padding-top: 80px;
-    }
+  &--radar {
+    background-image: url('~../../../img/chart-radar.svg');
   }
 }
 
@@ -299,18 +264,21 @@
 }
 
 .custom-report--footer {
-  margin: 15px 0px;
+  margin: 15px 0;
   text-align: right;
 }
 
-@media screen and (max-width: 767px) {
-  .form-view__reportButtons button.custom-reports {
-    margin-left: 8px;
+.custom-reports-selector {
+  max-width: 300px;
+}
+
+@include breakpoints.breakpoint(mediumAndUp) {
+  .report-view {
+    padding: 12px 40px;
   }
 
-  .form-view__reportButtons button.report-button__expand,
-  .form-view__reportButtons button.report-button__print {
-    margin-left: 0px;
-    padding: 0px 4px;
+  .report-view__itemContent table {
+    width: 80%;
+    margin-left: 10%;
   }
 }

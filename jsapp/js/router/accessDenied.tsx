@@ -1,52 +1,76 @@
-import React from 'react';
-import {observer} from 'mobx-react';
-import bem, {makeBem} from 'js/bem';
-import sessionStore from 'js/stores/session';
-import {replaceBracketsWithLink} from 'js/utils';
+import './accessDenied.scss'
 
-import envStore from 'js/envStore';
-import './accessDenied.scss';
+import React from 'react'
 
-bem.AccessDenied = makeBem(null, 'access-denied');
-bem.AccessDenied__body = makeBem(bem.AccessDenied, 'body', 'section');
-bem.AccessDenied__header = makeBem(bem.AccessDenied, 'header', 'header');
-bem.AccessDenied__text = makeBem(bem.AccessDenied, 'text', 'section');
+import { observer } from 'mobx-react'
+import bem, { makeBem } from '#/bem'
+import envStore from '#/envStore'
+import sessionStore from '#/stores/session'
+import { replaceBracketsWithLink } from '#/textUtils'
+
+bem.AccessDenied = makeBem(null, 'access-denied')
+bem.AccessDenied__body = makeBem(bem.AccessDenied, 'body', 'section')
+bem.AccessDenied__header = makeBem(bem.AccessDenied, 'header', 'header')
+bem.AccessDenied__text = makeBem(bem.AccessDenied, 'text', 'section')
 
 export interface AccessDeniedProps {
-  errorMessage?: string;
+  errorMessage?: string
 }
 const AccessDenied = (props: AccessDeniedProps) => {
-  let messageText;
+  const loggedIn = t(`Please [contact the support team] if you think it's an error.`)
+  const loggedOut = t(
+    `Please try logging in using the header button or [contact the support team] if you think it's an error.`,
+  )
+  let bodyText
+  let errorNumber
+  let headerText = t(`Access Denied`)
+  let messageText = sessionStatus()
 
-  if (sessionStore.isLoggedIn) {
-    messageText = t(
-      `Please try logging in using the header button or [contact the support team] if you think it's an error.`
-    );
+  // Obtaining error message number
+  if (props.errorMessage) {
+    errorNumber = Number.parseInt(props.errorMessage.replace(/[^\d].*/, ''))
   } else {
-    messageText = t(
-      `Please [contact the support team] if you think it's an error.`
-    );
+    errorNumber = 404
   }
 
-  let messageHtml = replaceBracketsWithLink(
-    messageText,
-    envStore.data.support_url
-  );
+  // Conditionally rendering error message based on number
+  switch (errorNumber) {
+    case 401:
+    case 403:
+      bodyText = t(`You don't have access to this page.`)
+      break
+    case 404:
+      bodyText = t(`Either you don't have access to this page or this page simply doesn't exist.`)
+      break
+    default:
+      headerText = t(`Something went wrong`)
+      bodyText = t(`We're sorry, but there was an unexpected error while trying to serve this page.`)
+      messageText = t(`Please try again later, or [contact the support team] if this happens repeatedly.`)
+      break
+  }
+
+  function sessionStatus() {
+    if (sessionStore.isLoggedIn) {
+      return loggedIn
+    } else {
+      return loggedOut
+    }
+  }
+
+  const messageHtml = replaceBracketsWithLink(messageText, envStore.data.support_url)
 
   return (
     <bem.AccessDenied>
       <bem.AccessDenied__body>
         <bem.AccessDenied__header>
-          <i className='k-icon k-icon-lock-alt' />
-          {t('Access denied')}
+          {errorNumber < 500 && <i className='k-icon k-icon-lock-alt' />}
+          {headerText}
         </bem.AccessDenied__header>
 
         <bem.AccessDenied__text>
-          {t(
-            "Either you don't have access to this page or this page simply doesn't exist."
-          )}
+          {bodyText}
 
-          <p dangerouslySetInnerHTML={{__html: messageHtml}} />
+          <p dangerouslySetInnerHTML={{ __html: messageHtml }} />
         </bem.AccessDenied__text>
 
         {props.errorMessage && (
@@ -58,7 +82,7 @@ const AccessDenied = (props: AccessDeniedProps) => {
         )}
       </bem.AccessDenied__body>
     </bem.AccessDenied>
-  );
-};
+  )
+}
 
-export default observer(AccessDenied);
+export default observer(AccessDenied)

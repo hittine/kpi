@@ -1,0 +1,103 @@
+@use 'scss/colors';
+@use 'scss/_variables';
+@use 'scss/mixins';
+
+// Note: we can't change this into a CSS Module, because some Form Builder code
+// relies on `.radio__input` being available.
+
+.radio {
+  .radio__row {
+    padding: 4px 0;
+    cursor: pointer;
+    display: block;
+
+    &.radio__row--title {
+      cursor: default;
+    }
+  }
+
+  .radio__input,
+  .radio__label {
+    display: inline-block;
+    vertical-align: top;
+  }
+
+  .radio__label {
+    max-width: calc(100% - 32px);
+    color: colors.$kobo-gray-800;
+    font-size: variables.$base-font-size;
+  }
+
+  .radio__input + .radio__label {
+    margin-inline-start: 6px;
+  }
+
+  .radio__input {
+    border-radius: 50%;
+    appearance: none;
+    position: relative;
+    margin: 0;
+    color: colors.$kobo-gray-500;
+    border: 1px solid currentcolor;
+    background-color: colors.$kobo-white;
+    width: 20px;
+    height: 20px;
+    outline: 0;
+    cursor: pointer;
+    overflow: hidden; // HACK FIX to not cause scrollbar when near the edge
+
+    &::after {
+      display: block;
+      position: absolute;
+      content: '';
+      top: 4px;
+      left: 4px;
+      border-radius: 50%;
+      width: 10px;
+      height: 10px;
+      background-color: currentcolor;
+    }
+
+    &:not(:checked)::after {
+      display: none;
+    }
+
+    // Keyboard focus styles
+    &:focus-visible {
+      @include mixins.default-ui-focus;
+    }
+  }
+
+  // Idle checked state
+  .radio__input:checked {
+    color: colors.$kobo-blue;
+  }
+
+  // Disabled state
+  &.radio--disabled {
+    .radio__row {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    .radio__input:checked {
+      color: colors.$kobo-gray-700;
+    }
+  }
+
+  .radio__input[disabled] {
+    pointer-events: none;
+    opacity: 0.5;
+  }
+
+  // Hover unchecked state
+  .radio__row:hover .radio__input:not(:checked) {
+    color: colors.$kobo-gray-700;
+    background-color: colors.$kobo-bg-blue;
+  }
+
+  // Hover checked state
+  .radio__row:hover .radio__input:checked {
+    color: colors.$kobo-mid-blue;
+  }
+}

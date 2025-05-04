@@ -1,8 +1,9 @@
 @use 'sass:color';
 @use 'sass:math';
 @use 'scss/mixins';
-@use 'scss/sizes';
-@use '~kobo-common/src/styles/colors';
+@use 'scss/colors';
+@use 'js/components/common/icon';
+@use './projectsTableRow.module';
 
 // This file contains all the styles that are being used exclusively in
 // `ProjectsTableHeader` component. Most of styles it is using are coming
@@ -11,33 +12,53 @@
 // Column Resizer handle styles are here, too.
 
 .columnRoot {
-  // We need this to truncate long column names
-  :global .kobo-dropdown,
-  :global .kobo-dropdown__trigger {
-    max-width: 100%;
-  }
-
   // For column width resizers
   position: relative; // Be a positioned ancestor for resize handles
   user-select: none;  // Prevent accidental text selection
+
+  // Make the whole header cell clickable for the dropdown trigger.
+  :global .kobo-dropdown,
+  :global .kobo-dropdown__trigger {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+  }
 }
 
 .trigger {
   @include mixins.centerRowFlex;
 
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-right: projectsTableRow.$projects-table-row-padding;
+  // 10 px is a magic number that puts the caret icon in the same line as the
+  // content of the cells below
+  padding-left: projectsTableRow.$projects-table-row-padding + 10px;
+
   cursor: pointer;
-  line-height: sizes.$x30; // ??
+  line-height: projectsTableRow.$projects-table-row-height;
 
   :global {
-    label {
-      @include mixins.textEllipsis;
-
-      cursor: inherit;
-      flex: 1;
+    // Dropdown arrow
+    .k-icon:first-child {
+      // Pull the dropdown label and arrow to the left somewhat.
+      // This measurement isn't scientific, it's just supposed to look good.
+      margin-left: 0 - icon.$s-icon-xxs - 2px;
+      padding-right: 3px;
+      opacity: 0.6;
     }
 
+    // Dropdown Label
+    label {
+      @include mixins.textEllipsis;
+    }
+
+    // Sorting indicator
     .k-icon:not(:first-child) {
-      margin-left: sizes.$x6;
+      margin-left: 6px;
+      color: colors.$kobo-teal; // make it stand out
     }
   }
 }
@@ -47,11 +68,9 @@
 }
 
 .dropdownContent {
-  background-color: colors.$kobo-white;
-  border-radius: sizes.$x6;
-  box-shadow: 0 0 sizes.$x6 color.change(colors.$kobo-storm, $alpha: 0.3);
-  padding: sizes.$x10;
-  min-width: sizes.$x120;
+  @include mixins.floatingRoundedBox;
+  padding: 10px;
+  min-width: 120px;
 
   :global {
     .k-button {
@@ -59,7 +78,7 @@
       white-space: nowrap;
 
       &:not(:first-child) {
-        margin-top: sizes.$x6;
+        margin-top: 6px;
       }
     }
   }
@@ -67,22 +86,22 @@
 
 // Resizers
 
-$line-width: sizes.$x1;
+$line-width: 1px;
 // Resizer "pad" should be at least 10px wide for ease of use.
 // If $line-width is odd, $resizer-width should be odd, too.
-$resizer-width: sizes.$x16 + $line-width;
+$resizer-width: 16px + $line-width;
 
 // Resizer "pad" - interactive area
 .resizer {
   cursor: ew-resize; // col-resize <-|->   ew-resize <->
-  border-radius: sizes.$x4;
+  border-radius: 4px;
   position: absolute;
   top: 0;
   bottom: 0;
   right: math.div($resizer-width - $line-width, -2);
   width: $resizer-width;
   z-index: 2; // Overlap adjacent column header and cell width indicator
-  background-color: colors.$kobo-light-blue; // Resizer "pad" color
+  background-color: colors.$kobo-bg-blue; // Resizer "pad" color
   opacity: 0;
 
   &:hover {
@@ -97,8 +116,8 @@ $resizer-width: sizes.$x16 + $line-width;
   display: inline-block;
   content: '';
   position: absolute;
-  top: sizes.$x4; // $resizer-line-vertical-offset;
-  bottom: sizes.$x4;
+  top: 4px; // $resizer-line-vertical-offset;
+  bottom: 4px;
   right: math.div($resizer-width - $line-width, 2);
   width: $line-width;
   background-color: colors.$kobo-blue;
@@ -117,17 +136,17 @@ $resizer-width: sizes.$x16 + $line-width;
 .columnRoot:hover {
   &::before,
   &::after {
-    top: sizes.$x6;
-    bottom: sizes.$x6;
+    top: 6px;
+    bottom: 6px;
     display: inline-block;
     position: absolute;
-    background-color: colors.$kobo-gray-65;
+    background-color: colors.$kobo-gray-500;
     // Give a little fade
-    border-top: sizes.$x1 solid colors.$kobo-gray-92;
-    border-bottom: sizes.$x1 solid colors.$kobo-gray-92;
+    border-top: 1px solid colors.$kobo-gray-300;
+    border-bottom: 1px solid colors.$kobo-gray-300;
     box-shadow:
-      0 -1px 0 colors.$kobo-gray-96,
-      0  1px 0 colors.$kobo-gray-96;
+      0 -1px 0 colors.$kobo-gray-200,
+      0  1px 0 colors.$kobo-gray-200;
     width: $line-width;
     content: '';
     z-index: 1; // Layer below the resizer "pad" but above adjacent column headers
@@ -154,6 +173,7 @@ $resizer-width: sizes.$x16 + $line-width;
   opacity: 1;
 }
 // Always hide leftmost width indicator
-.columnRoot:first-child::before {
+// nth-child(2) because of checkbox column
+.columnRoot:nth-child(2)::before {
   display: none;
 }

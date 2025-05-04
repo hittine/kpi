@@ -1,32 +1,35 @@
-import React from 'react';
-import DocumentTitle from 'react-document-title';
-import {isRowProcessingEnabled} from 'js/assetUtils';
-import type {AssetResponse} from 'js/dataInterface';
-import assetStore from 'js/assetStore';
-import LoadingSpinner from 'js/components/common/loadingSpinner';
-import SingleProcessingHeader from 'js/components/processing/singleProcessingHeader';
-import SingleProcessingSubmissionDetails from 'js/components/processing/singleProcessingSubmissionDetails';
-import SingleProcessingContent from 'js/components/processing/singleProcessingContent';
-import SingleProcessingPreview from 'js/components/processing/singleProcessingPreview';
-import singleProcessingStore from 'js/components/processing/singleProcessingStore';
-import {UNSAVED_CHANGES_WARNING} from 'jsapp/js/protector/protectorConstants';
-import {usePrompt} from 'jsapp/js/router/promptBlocker';
-import type {WithRouterProps} from 'jsapp/js/router/legacy';
-import styles from './singleProcessingRoute.module.scss';
+import React from 'react'
+
+import DocumentTitle from 'react-document-title'
+import { unstable_usePrompt as usePrompt } from 'react-router-dom'
+import assetStore from '#/assetStore'
+import { isRowProcessingEnabled } from '#/assetUtils'
+import CenteredMessage from '#/components/common/centeredMessage.component'
+import LoadingSpinner from '#/components/common/loadingSpinner'
+import ProcessingSidebar from '#/components/processing/sidebar/processingSidebar'
+import SingleProcessingContent from '#/components/processing/singleProcessingContent'
+import SingleProcessingHeader from '#/components/processing/singleProcessingHeader'
+import singleProcessingStore from '#/components/processing/singleProcessingStore'
+import type { AssetResponse } from '#/dataInterface'
+import { UNSAVED_CHANGES_WARNING } from '#/protector/protectorConstants'
+import type { WithRouterProps } from '#/router/legacy'
+import styles from './singleProcessingRoute.module.scss'
+
+const NO_DATA_MESSAGE = t('There is no data for this question for the current submission')
 
 interface SingleProcessingRouteProps extends WithRouterProps {
-  uid: string;
-  qpath: string;
-  submissionEditId: string;
+  uid: string
+  xpath: string
+  submissionEditId: string
 }
 
 const Prompt = () => {
-  usePrompt(UNSAVED_CHANGES_WARNING);
-  return <></>;
-};
+  usePrompt({ message: UNSAVED_CHANGES_WARNING, when: true })
+  return <></>
+}
 
 interface SingleProcessingRouteState {
-  asset: AssetResponse | undefined;
+  asset: AssetResponse | undefined
 }
 
 /**
@@ -38,29 +41,27 @@ export default class SingleProcessingRoute extends React.Component<
   SingleProcessingRouteState
 > {
   constructor(props: SingleProcessingRouteProps) {
-    super(props);
+    super(props)
     if (this.props.params.uid) {
       this.state = {
         // NOTE: This route component is being loaded with PermProtectedRoute so
         // we know that the call to backend to get asset was already made, and
         // thus we can safely assume asset data is present :happy_face:
         asset: assetStore.getAsset(this.props.params.uid),
-      };
+      }
     }
   }
 
-  private unlisteners: Function[] = [];
+  private unlisteners: Function[] = []
 
   componentDidMount() {
-    this.unlisteners.push(
-      singleProcessingStore.listen(this.onSingleProcessingStoreChange, this)
-    );
+    this.unlisteners.push(singleProcessingStore.listen(this.onSingleProcessingStoreChange, this))
   }
 
   componentWillUnmount() {
     this.unlisteners.forEach((clb) => {
-      clb();
-    });
+      clb()
+    })
   }
 
   /**
@@ -69,53 +70,37 @@ export default class SingleProcessingRoute extends React.Component<
    * store changes :shrug:.
    */
   onSingleProcessingStoreChange() {
-    this.forceUpdate();
+    this.forceUpdate()
   }
 
   /** Is processing enabled for current question. */
   isProcessingEnabled() {
-    if (this.props.params.uid && this.props.params.qpath) {
-      return isRowProcessingEnabled(
-        this.props.params.uid,
-        this.props.params.qpath
-      );
+    if (this.props.params.uid && this.props.params.xpath) {
+      return isRowProcessingEnabled(this.props.params.uid, this.props.params.xpath)
     }
-    return false;
+    return false
   }
 
   /** Whether current submission has a response for current question. */
   isDataProcessable(): boolean {
-    const editIds =
-      singleProcessingStore.getCurrentQuestionSubmissionsEditIds();
+    const editIds = singleProcessingStore.getCurrentQuestionSubmissionsEditIds()
     if (Array.isArray(editIds)) {
-      const currentItem = editIds.find(
-        (item) => item.editId === this.props.params.submissionEditId
-      );
+      const currentItem = editIds.find((item) => item.editId === this.props.params.submissionEditId)
       if (currentItem) {
-        return currentItem.hasResponse;
+        return currentItem.hasResponse
       }
-      return false;
+      return false
     }
-    return false;
+    return false
   }
 
   renderBottom() {
-    if (
-      !singleProcessingStore.isReady() ||
-      !this.state.asset?.content?.survey
-    ) {
-      return <LoadingSpinner />;
+    if (!singleProcessingStore.isReady() || !this.state.asset?.content?.survey) {
+      return <LoadingSpinner />
     }
 
     if (!this.isProcessingEnabled()) {
-      return (
-        <LoadingSpinner
-          hideSpinner
-          message={t(
-            'There is no data for this question for the current submission'
-          )}
-        />
-      );
+      return <CenteredMessage message={NO_DATA_MESSAGE} />
     }
 
     if (this.isProcessingEnabled()) {
@@ -123,62 +108,49 @@ export default class SingleProcessingRoute extends React.Component<
         <React.Fragment>
           <section className={styles.bottomLeft}>
             {this.isDataProcessable() && <SingleProcessingContent />}
-            {!this.isDataProcessable() && (
-              <LoadingSpinner
-                hideSpinner
-                message={t(
-                  'There is no data for this question for the current submission'
-                )}
-              />
-            )}
+            {!this.isDataProcessable() && <CenteredMessage message={NO_DATA_MESSAGE} />}
           </section>
 
           <section className={styles.bottomRight}>
-            <SingleProcessingPreview />
-
-            <SingleProcessingSubmissionDetails
-              assetContent={this.state.asset.content}
-            />
+            <ProcessingSidebar asset={this.state.asset} />
           </section>
         </React.Fragment>
-      );
+      )
     }
 
-    return null;
+    return null
   }
 
   render() {
-    const pageTitle = 'Data | KoboToolbox';
+    const pageTitle = 'Data | KoboToolbox'
 
-    if (
-      !singleProcessingStore.isReady() ||
-      !this.state.asset?.content?.survey
-    ) {
+    if (!singleProcessingStore.isReady() || !this.state.asset?.content?.survey) {
       return (
         <DocumentTitle title={pageTitle}>
           <section className={styles.root}>
             <LoadingSpinner />
           </section>
         </DocumentTitle>
-      );
+      )
     }
 
     return (
       <DocumentTitle title={pageTitle}>
         <section className={styles.root}>
-          {(singleProcessingStore.hasAnyUnsavedWork() ||
-            singleProcessingStore.isPollingForTranscript) && <Prompt />}
+          {(singleProcessingStore.hasAnyUnsavedWork() || singleProcessingStore.data.isPollingForTranscript) && (
+            <Prompt />
+          )}
           <section className={styles.top}>
             <SingleProcessingHeader
               submissionEditId={this.props.params.submissionEditId}
               assetUid={this.props.params.uid}
-              assetContent={this.state.asset.content}
+              asset={this.state.asset}
             />
           </section>
 
           <section className={styles.bottom}>{this.renderBottom()}</section>
         </section>
       </DocumentTitle>
-    );
+    )
   }
 }

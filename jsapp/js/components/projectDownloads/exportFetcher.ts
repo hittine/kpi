@@ -1,6 +1,6 @@
-import _ from 'lodash';
-import {actions} from 'js/actions';
-import envStore from 'js/envStore';
+import { actions } from '#/actions'
+import envStore from '#/envStore'
+import { getExponentialDelayTime } from '#/utils'
 
 /**
  * Responsible for handling interval fetch calls.
@@ -9,58 +9,38 @@ import envStore from 'js/envStore';
  * `stop()` this instance when completed.
  */
 export default class ExportFetcher {
-  private callCount = 0;
-  private timeoutId = -1;
-  private assetUid: string;
-  private exportUid: string;
+  private callCount = 0
+  private timeoutId = -1
+  private assetUid: string
+  private exportUid: string
 
   constructor(assetUid: string, exportUid: string) {
-    this.assetUid = assetUid;
-    this.exportUid = exportUid;
+    this.assetUid = assetUid
+    this.exportUid = exportUid
 
     // Initialize the interval.
-    this.makeIntervalFetchCall();
-  }
-
-  /**
-   * Exponentially increases the delay each time this method is being called,
-   * with some randomness included.
-   *
-   * @returns number in milliseconds
-   */
-  private getFetchDelay() {
-    this.callCount += 1;
-    // This magic number gives a nice grow for the delays.
-    const magicFactor = 1.666;
-
-    return Math.round(1000 * Math.max(
-      envStore.data.min_retry_time, // Bottom limit
-      Math.min(
-        envStore.data.max_retry_time, // Top limit
-        _.random(
-          magicFactor ** this.callCount,
-          magicFactor ** (this.callCount + 1)
-        )
-      )
-    ));
+    this.makeIntervalFetchCall()
   }
 
   // Starts making fetch calls in a growing randomized interval.
   private makeIntervalFetchCall() {
     if (this.timeoutId > 0) {
       // Make the call if we've already waited.
-      actions.exports.getExport(this.assetUid, this.exportUid);
+      actions.exports.getExport(this.assetUid, this.exportUid)
     }
+
+    this.callCount += 1
+
     // Keep the interval alive (can't use `setInterval` with randomized value,
     // so we use `setTimout` instead).
     this.timeoutId = window.setTimeout(
       this.makeIntervalFetchCall.bind(this),
-      this.getFetchDelay()
-    );
+      getExponentialDelayTime(this.callCount, envStore.data.min_retry_time, envStore.data.max_retry_time),
+    )
   }
 
   // Stops the instance.
   stop() {
-    clearTimeout(this.timeoutId);
+    clearTimeout(this.timeoutId)
   }
 }

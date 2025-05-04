@@ -1,14 +1,16 @@
-# coding: utf-8
 import json
 from copy import deepcopy
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from django.test import TestCase
+from django.utils import timezone
 
 from formpack.utils.expand_content import SCHEMA_VERSION
+from kobo.apps.kobo_auth.shortcuts import User
 from kpi.exceptions import BadAssetTypeException
 from kpi.utils.hash import calculate_hash
-from ..models import Asset
-from ..models import AssetVersion
+from ..models import Asset, AssetVersion
 
 
 class AssetVersionTestCase(TestCase):
@@ -23,12 +25,12 @@ class AssetVersionTestCase(TestCase):
             }
         new_asset = Asset.objects.create(asset_type='survey', content=_content)
         _vc = deepcopy(new_asset.latest_version.version_content)
-        pop_atts = ['$kuid',
+        pop_atts = [
+            '$kuid',
             '$autoname',
             '$prev',
-            '$qpath',
             '$xpath',
-            ]
+        ]
         for row in _vc['survey']:
             for att in pop_atts:
                 row.pop(att, None)
@@ -51,23 +53,25 @@ class AssetVersionTestCase(TestCase):
         self.assertEqual(av_count + 2, AssetVersion.objects.count())
 
     def test_asset_deployment(self):
-        self.asset = Asset.objects.create(asset_type='survey', content={
-            'survey': [{'type': 'note', 'label': 'Read me', 'name': 'n1'}]
-        })
+        bob = User.objects.create(username='bob')
+        self.asset = Asset.objects.create(
+            asset_type='survey',
+            content={'survey': [{'type': 'note', 'label': ['Read me'], 'name': 'n1'}]},
+            owner=bob,
+        )
         self.assertEqual(self.asset.asset_versions.count(), 1)
         self.assertEqual(self.asset.latest_version.deployed, False)
 
-        self.asset.content['survey'].append({'type': 'note',
-                                             'label': 'Read me 2',
-                                             'name': 'n2'})
+        self.asset.content['survey'].append(
+            {'type': 'note', 'label': ['Read me 2'], 'name': 'n2'}
+        )
         self.asset.save()
         self.assertEqual(self.asset.asset_versions.count(), 2)
         v2 = self.asset.latest_version
         self.assertEqual(self.asset.latest_version.deployed, False)
 
         self.asset.deploy(backend='mock', active=True)
-        self.asset.save(create_version=False,
-                        adjust_content=False)
+        self.asset.save(create_version=False, adjust_content=False)
         # version did not increment
         self.assertEqual(self.asset.asset_versions.count(), 2)
 
@@ -109,3 +113,24 @@ class AssetVersionTestCase(TestCase):
         new_asset.settings['description'] = 'Loco el que lee'
         new_asset.save()
         self.assertEqual(new_asset.latest_version.content_hash, expected_hash)
+
+    def test_version_date_modified(self):
+        date_forced = datetime(2022, 1, 1, 0, 0, 0, tzinfo=ZoneInfo('UTC'))
+        content = {
+            'survey': [{'type': 'note', 'label': 'Read me', 'name': 'n1'}],
+        }
+        new_asset = Asset.objects.create(
+            asset_type='survey',
+            content=content,
+            date_created=date_forced,
+            date_modified=date_forced,
+        )
+        AssetVersion.objects.filter(uid=new_asset.latest_version.uid).update(
+            date_modified=date_forced
+        )
+        new_asset.refresh_from_db()
+        assert new_asset.latest_version.date_modified == date_forced
+        now = timezone.now()
+        new_asset.latest_version.save()
+        assert new_asset.latest_version.date_modified != date_forced
+        assert new_asset.latest_version.date_modified >= now

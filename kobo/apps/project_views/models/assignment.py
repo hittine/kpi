@@ -1,6 +1,7 @@
 # coding: utf-8
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.db import models
@@ -31,9 +32,7 @@ class AssignmentAdmin(admin.ModelAdmin):
     def get_queryset(self, request: Request) -> QuerySet:
         return self.model.objects.exclude(project_views__isnull=True)
 
-    def has_add_permission(
-        self, request: Reqest, obj: Assignment = None
-    ) -> bool:
+    def has_add_permission(self, request: Request) -> bool:
         return False
 
     def has_change_permission(
@@ -49,7 +48,7 @@ class AssignmentAdmin(admin.ModelAdmin):
 
 class AssignmentProjectViewM2M(models.Model):
 
-    user = models.ForeignKey('auth.User', null=True, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.CASCADE)
     project_view = models.ForeignKey(
         'ProjectView',
         on_delete=models.CASCADE,

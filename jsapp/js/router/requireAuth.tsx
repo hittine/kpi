@@ -1,18 +1,28 @@
-import React, {ReactElement, Suspense, useState} from 'react';
-import {RouteObject} from 'react-router-dom';
-import sessionStore from 'js/stores/session';
-import AccessDenied from './accessDenied';
+import type React from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import sessionStore from '#/stores/session'
+import LoadingSpinner from '../components/common/loadingSpinner'
+import { RequireOrg } from './RequireOrg'
+import { redirectToLogin } from './routerUtils'
 
 interface Props {
-  children: RouteObject[] | undefined | ReactElement;
+  children: React.ReactNode
 }
 
-/** https://gist.github.com/mjackson/d54b40a094277b7afdd6b81f51a0393f */
-export default function RequireAuth({children}: Props) {
-  const [session] = useState(() => sessionStore);
+export default function RequireAuth({ children }: Props) {
+  const [session] = useState(() => sessionStore)
+
+  useEffect(() => {
+    if (!session.isLoggedIn) {
+      redirectToLogin()
+    }
+  }, [session.isLoggedIn])
+
   return session.isLoggedIn ? (
-    <Suspense fallback={null}>{children}</Suspense>
+    <Suspense fallback={null}>
+      <RequireOrg>{children}</RequireOrg>
+    </Suspense>
   ) : (
-    <AccessDenied />
-  );
-};
+    <LoadingSpinner />
+  )
+}

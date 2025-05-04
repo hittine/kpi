@@ -2,43 +2,36 @@
 from __future__ import annotations
 
 import csv
-from celery import shared_task
 from collections import Counter
 from datetime import datetime
 from typing import Union
-try:
-    from zoneinfo import ZoneInfo
-except ImportError:
-    from backports.zoneinfo import ZoneInfo
 
+from celery import shared_task
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
-from django.contrib.auth.models import User
-from django.core.files.storage import get_storage_class
-from django.db.models import Sum, CharField, Count, F, Value, DateField, Q
+from django.core.files.storage import default_storage
+from django.db.models import CharField, Count, DateField, F, IntegerField, Sum, Value
 from django.db.models.functions import Cast, Concat
 
 from hub.models import ExtraUserDetail
+from kobo.apps.kobo_auth.shortcuts import User
+from kobo.apps.openrosa.apps.logger.models import (
+    Instance,
+    MonthlyXFormSubmissionCounter,
+    XForm,
+)
+from kobo.apps.openrosa.apps.main.models import UserProfile
+from kobo.apps.trackers.models import NLPUsageCounter
 from kobo.static_lists import COUNTRIES
 from kpi.constants import ASSET_TYPE_SURVEY
-from kpi.deployment_backends.kc_access.shadow_models import (
-    KobocatXForm,
-    KobocatUser,
-    KobocatUserProfile,
-    ReadOnlyKobocatInstance,
-    ReadOnlyKobocatMonthlyXFormSubmissionCounter,
-)
-from kpi.models.asset import Asset
-
+from kpi.models.asset import Asset, AssetDeploymentStatus
 
 # Make sure this app is listed in `INSTALLED_APPS`; otherwise, Celery will
 # complain that the task is unregistered
 
 
 @shared_task
-def generate_country_report(
-    output_filename: str, start_date: str, end_date: str
-):
+def generate_country_report(output_filename: str, start_date: str, end_date: str):
 
     def get_row_for_country(code_: str, label_: str):
         row_ = []
@@ -47,13 +40,12 @@ def generate_country_report(
             '_deployment_data__backend_response__formid', flat=True
         ).filter(
             settings__country_codes__in_array=[code_],
-            _deployment_data__active=True,
-            _deployment_data__has_key='backend',
+            _deployment_status=AssetDeploymentStatus.DEPLOYED,
             asset_type=ASSET_TYPE_SURVEY,
         )
         # Doing it this way because this report is focused on crises in
         # very specific time frames
-        instances_count = ReadOnlyKobocatInstance.objects.filter(
+        instances_count = Instance.objects.filter(
             xform_id__in=list(xform_ids),
             date_created__date__range=(start_date, end_date),
         ).count()
@@ -68,7 +60,6 @@ def generate_country_report(
         'Count',
     ]
 
-    default_storage = get_storage_class()()
     with default_storage.open(output_filename, 'w') as output_file:
         writer = csv.writer(output_file)
         writer.writerow(columns)
@@ -97,21 +88,19 @@ def generate_continued_usage_report(output_filename: str, end_date: str):
         last_login__date__range=(twelve_months_time, end_date),
     )
 
-    for user in users:
+    for user in users.iterator():
         # twelve months
         assets = user.assets.values('pk', 'date_created').filter(
             date_created__date__range=(twelve_months_time, end_date),
         )
-        submissions_count = (
-            ReadOnlyKobocatMonthlyXFormSubmissionCounter.objects.annotate(
-                date=Cast(
-                    Concat(F('year'), Value('-'), F('month'), Value('-'), 1),
-                    DateField(),
-                )
-            ).filter(
-                user_id=user.id,
-                date__range=(twelve_months_time, end_date),
+        submissions_count = MonthlyXFormSubmissionCounter.objects.annotate(
+            date=Cast(
+                Concat(F('year'), Value('-'), F('month'), Value('-'), 1),
+                DateField(),
             )
+        ).filter(
+            user_id=user.id,
+            date__range=(twelve_months_time, end_date),
         )
         twelve_asset_count = assets.aggregate(asset_count=Count('pk'))
         twelve_submission_count = submissions_count.aggregate(
@@ -161,7 +150,6 @@ def generate_continued_usage_report(output_filename: str, end_date: str):
         'Submissions 12M',
     ]
 
-    default_storage = get_storage_class()()
     with default_storage.open(output_filename, 'w') as output:
         writer = csv.writer(output)
         writer.writerow(headers)
@@ -178,41 +166,42 @@ def generate_domain_report(output_filename: str, start_date: str, end_date: str)
     # get a list of the domains
     domains = [
         email.split('@')[1] if '@' in email else 'Invalid domain ' + email
-        for email in emails
+        for email in emails.iterator()
     ]
     domain_users = Counter(domains)
 
     # get a count of the assets
     domain_assets = {
-        domain:
-            Asset.objects.filter(
-                owner__email__endswith='@' + domain,
-                date_created__date__range=(start_date, end_date),
-            ).count()
+        domain: Asset.objects.filter(
+            owner__email__endswith='@' + domain,
+            date_created__date__range=(start_date, end_date),
+        ).count()
         for domain in domain_users.keys()
     }
 
     # get a count of the submissions
     domain_submissions = {
-        domain: ReadOnlyKobocatMonthlyXFormSubmissionCounter.objects.annotate(
-            date=Cast(
-                Concat(F('year'), Value('-'), F('month'), Value('-'), 1),
-                DateField(),
+        domain: (
+            MonthlyXFormSubmissionCounter.objects.annotate(
+                date=Cast(
+                    Concat(F('year'), Value('-'), F('month'), Value('-'), 1),
+                    DateField(),
+                )
             )
-        ).filter(
-            user__email__endswith='@' + domain,
-            date__range=(start_date, end_date),
-        ).aggregate(
-            Sum('counter')
-        )['counter__sum']
-        if domain_assets[domain] else 0
+            .filter(
+                user__email__endswith='@' + domain,
+                date__range=(start_date, end_date),
+            )
+            .aggregate(Sum('counter'))['counter__sum']
+            if domain_assets[domain]
+            else 0
+        )
         for domain in domain_users.keys()
     }
 
     # create the CSV file
     columns = ['Email Domain', 'Users', 'Projects', 'Submissions']
 
-    default_storage = get_storage_class()()
     with default_storage.open(output_filename, 'w') as output:
         writer = csv.writer(output)
         writer.writerow(columns)
@@ -234,30 +223,12 @@ def generate_domain_report(output_filename: str, start_date: str, end_date: str)
 def generate_forms_count_by_submission_range(output_filename: str):
     # List of submissions count ranges
     ranges = [
-        {
-            'label': '0',
-            'orm_criteria': {'count': 0}
-        },
-        {
-            'label': '1 - 500',
-            'orm_criteria': {'count__range': (1, 500)}
-        },
-        {
-            'label': '501 - 1000',
-            'orm_criteria': {'count__range': (501, 1000)}
-        },
-        {
-            'label': '1001 - 10000',
-            'orm_criteria': {'count__range': (1001, 10000)}
-        },
-        {
-            'label': '10001 - 50000',
-            'orm_criteria': {'count__range': (10001, 50000)}
-        },
-        {
-            'label': '50001 and more',
-            'orm_criteria': {'count__gte': 50001}
-        },
+        {'label': '0', 'orm_criteria': {'count': 0}},
+        {'label': '1 - 500', 'orm_criteria': {'count__range': (1, 500)}},
+        {'label': '501 - 1000', 'orm_criteria': {'count__range': (501, 1000)}},
+        {'label': '1001 - 10000', 'orm_criteria': {'count__range': (1001, 10000)}},
+        {'label': '10001 - 50000', 'orm_criteria': {'count__range': (10001, 50000)}},
+        {'label': '50001 and more', 'orm_criteria': {'count__gte': 50001}},
     ]
 
     # store data for csv
@@ -265,15 +236,16 @@ def generate_forms_count_by_submission_range(output_filename: str):
 
     today = datetime.today()
     date_ = today - relativedelta(years=1)
-    no_submissions = KobocatXForm.objects.filter(
-        date_created__date__gte=date_,
-        num_of_submissions=0
+    no_submissions = XForm.objects.filter(
+        date_created__date__gte=date_, num_of_submissions=0
     )
-    queryset = ReadOnlyKobocatInstance.objects.values(
-        'xform_id'
-    ).filter(
-        date_created__date__gte=date_,
-    ).annotate(count=Count('xform_id'))
+    queryset = (
+        Instance.objects.values('xform_id')
+        .filter(
+            date_created__date__gte=date_,
+        )
+        .annotate(count=Count('xform_id'))
+    )
 
     for r in ranges:
         if r['label'] == '0':
@@ -285,7 +257,6 @@ def generate_forms_count_by_submission_range(output_filename: str):
     headers = ['Range', 'Count']
 
     # Crate a csv with output filename
-    default_storage = get_storage_class()()
     with default_storage.open(output_filename, 'w') as output:
         writer = csv.writer(output)
         writer.writerow(headers)
@@ -294,62 +265,26 @@ def generate_forms_count_by_submission_range(output_filename: str):
 
 @shared_task
 def generate_media_storage_report(output_filename: str):
-    attachments = KobocatUserProfile.objects.all().values(
+    attachments = UserProfile.objects.all().values(
         'user__username',
         'attachment_storage_bytes',
     )
 
     data = []
 
-    for attachment_count in attachments:
-        data.append([
-            attachment_count['user__username'],
-            attachment_count['attachment_storage_bytes'],
-        ])
+    for attachment_count in attachments.iterator():
+        data.append(
+            [
+                attachment_count['user__username'],
+                attachment_count['attachment_storage_bytes'],
+            ]
+        )
 
     headers = ['Username', 'Storage Used (Bytes)']
 
-    default_storage = get_storage_class()()
     with default_storage.open(output_filename, 'w') as output:
         writer = csv.writer(output)
         writer.writerow(headers)
-        writer.writerows(data)
-
-
-@shared_task
-def generate_user_count_by_organization(output_filename: str):
-    # get users organizations
-    organizations = (
-        User.objects.filter(extra_details__data__has_key='organization')
-        .values('extra_details__data__organization')
-        .annotate(total=Count('extra_details__data__organization'))
-    ).order_by('extra_details__data__organization')
-
-    no_organizations_count = User.objects.exclude(
-        Q(pk=settings.ANONYMOUS_USER_ID)
-        | Q(extra_details__data__has_key='organization')
-    ).count()
-
-    has_no_organizations = False
-    data = []
-    for o in organizations:
-        if not o['extra_details__data__organization']:
-            has_no_organizations = True
-            o['extra_details__data__organization'] = 'Unspecified'
-            o['total'] += no_organizations_count
-
-        data.append([o['extra_details__data__organization'], o['total']])
-
-    if not has_no_organizations:
-        data.insert(0, ['Unspecified', no_organizations_count])
-
-    # write data to a csv file
-    columns = ['Organization', 'Count']
-
-    default_storage = get_storage_class()()
-    with default_storage.open(output_filename, 'w') as output_file:
-        writer = csv.writer(output_file)
-        writer.writerow(columns)
         writer.writerows(data)
 
 
@@ -361,12 +296,12 @@ def generate_user_report(output_filename: str):
         else:
             return d
 
-    def get_row_for_user(u: KobocatUser) -> list:
+    def get_row_for_user(u: 'kobo_auth.User') -> list:
         row_ = []
 
         try:
-            profile = KobocatUserProfile.objects.get(user=u)
-        except KobocatUserProfile.DoesNotExist:
+            profile = UserProfile.objects.get(user_id=u.pk)
+        except UserProfile.DoesNotExist:
             profile = None
 
         try:
@@ -404,7 +339,7 @@ def generate_user_report(output_filename: str):
         else:
             row_.append('')
 
-        row_.append(KobocatXForm.objects.filter(user=u).count())
+        row_.append(XForm.objects.filter(user=u).count())
 
         if profile:
             row_.append(profile.num_of_submissions)
@@ -431,13 +366,10 @@ def generate_user_report(output_filename: str):
         'last_login',
     ]
 
-    default_storage = get_storage_class()()
     with default_storage.open(output_filename, 'w') as output_file:
         writer = csv.writer(output_file)
         writer.writerow(columns)
-        kc_users = KobocatUser.objects.exclude(
-            pk=settings.ANONYMOUS_USER_ID
-        ).order_by('pk')
+        kc_users = User.objects.exclude(pk=settings.ANONYMOUS_USER_ID).order_by('pk')
         for kc_user in kc_users.iterator(CHUNK_SIZE):
             try:
                 row = get_row_for_user(kc_user)
@@ -465,26 +397,45 @@ def generate_user_statistics_report(
     }
 
     # Filter the asset_queryset for active deployments
-    asset_queryset = asset_queryset.filter(_deployment_data__active=True)
+    asset_queryset = asset_queryset.filter(
+        _deployment_status=AssetDeploymentStatus.DEPLOYED
+    )
     records = asset_queryset.annotate(deployment_count=Count('pk')).order_by()
     deployment_count = {
-        record['owner_id']: record['deployment_count']
-        for record in records
+        record['owner_id']: record['deployment_count'] for record in records.iterator()
     }
 
     # Get records from SubmissionCounter
     records = (
-        ReadOnlyKobocatMonthlyXFormSubmissionCounter.objects.annotate(
+        MonthlyXFormSubmissionCounter.objects.annotate(
             date=Cast(
                 Concat(F('year'), Value('-'), F('month'), Value('-'), 1),
                 DateField(),
             )
-        ).filter(date__range=(start_date, end_date)).values(
+        )
+        .filter(date__range=(start_date, end_date))
+        .values(
             'user_id',
             'user__username',
             'user__email',
             'user__date_joined',
         ).order_by('user__date_joined').annotate(count_sum=Sum('counter'))
+    )
+
+    # get NLP statistics
+    nlp_counters = (
+        NLPUsageCounter.objects.filter(
+            date__range=(start_date, end_date)
+        ).values(
+            'user_id',
+        ).annotate(
+            total_google_asr=Sum(
+                Cast(F('counters__google_asr_seconds'), IntegerField()),
+            ),
+            total_google_mt=Sum(
+                Cast(F('counters__google_mt_characters'), IntegerField()),
+            ),
+        )
     )
 
     def _get_country_value(value: Union[dict, list]) -> str:
@@ -495,20 +446,31 @@ def generate_user_statistics_report(
 
         return value
 
-    for record in records:
+    for record in records.iterator():
+        user_id = record['user_id']
         user_details, created = ExtraUserDetail.objects.get_or_create(
-            user_id=record['user_id']
+            user_id=user_id
         )
+        # Users will only have a counter if they have used NLP services in the
+        # specified period so a fallback is needed
+        try:
+            nlp_totals = nlp_counters.get(user_id=user_id)
+        except NLPUsageCounter.DoesNotExist:
+            nlp_totals = {}
         data.append([
             record['user__username'],
             user_details.data.get('name', ''),
             record['user__date_joined'],
             record['user__email'],
+            user_details.data.get('organization_type', ''),
             user_details.data.get('organization', ''),
+            user_details.data.get('organization_website', ''),
             _get_country_value(user_details.data.get('country', '')),
             record['count_sum'],
-            forms_count.get(record['user_id'], 0),
-            deployment_count.get(record['user_id'], 0)
+            forms_count.get(user_id, 0),
+            deployment_count.get(user_id, 0),
+            nlp_totals.get('total_google_asr', 0),
+            nlp_totals.get('total_google_mt', 0),
         ])
 
     columns = [
@@ -516,14 +478,17 @@ def generate_user_statistics_report(
         'Name',
         'Date Joined',
         'Email',
+        'Organization Type',
         'Organization',
+        'Organization Website',
         'Country',
         'Submissions Count',
         'Forms Count',
-        'Deployments Count'
+        'Deployments Count',
+        'Google ASR Seconds',
+        'Google MT Seconds',
     ]
 
-    default_storage = get_storage_class()()
     with default_storage.open(output_filename, 'w') as output:
         writer = csv.writer(output)
         writer.writerow(columns)
@@ -531,7 +496,11 @@ def generate_user_statistics_report(
 
 
 @shared_task
-def generate_user_details_report(output_filename: str):
+def generate_user_details_report(
+    output_filename: str,
+    start_date: str,
+    end_date: str
+):
     USER_COLS = [
         'id',
         'username',
@@ -553,13 +522,14 @@ def generate_user_details_report(output_filename: str):
         'country',
         'city',
         'bio',
+        'organization_type',
         'organization',
-        'require_auth',
-        'primarySector',
         'organization_website',
+        'primarySector',
         'twitter',
         'linkedin',
         'instagram',
+        'newsletter_subscription',
         'metadata',
         'last_ui_language',
     ]
@@ -583,7 +553,10 @@ def generate_user_details_report(output_filename: str):
     values = USER_COLS + METADATA_COL
 
     data = (
-        User.objects.exclude(pk=settings.ANONYMOUS_USER_ID)
+        User.objects.filter(
+            date_joined__date__range=(start_date, end_date),
+        )
+        .exclude(pk=settings.ANONYMOUS_USER_ID)
         .annotate(
             mfa_is_active=F('mfa_methods__is_active'),
             metadata=F('extra_details__data'),
@@ -599,12 +572,11 @@ def generate_user_details_report(output_filename: str):
         .order_by('id')
     )
 
-    default_storage = get_storage_class()()
     with default_storage.open(output_filename, 'w') as f:
         columns = USER_COLS + EXTRA_DETAILS_COLS
         writer = csv.writer(f)
         writer.writerow(columns)
-        for row in data:
+        for row in data.iterator():
             metadata = row.pop('metadata', {}) or {}
             flatten_metadata_inplace(metadata)
             row.update(metadata)

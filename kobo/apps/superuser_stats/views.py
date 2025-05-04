@@ -3,7 +3,7 @@ import re
 from datetime import datetime, date
 
 from django.contrib.auth.decorators import user_passes_test
-from django.core.files.storage import get_storage_class
+from django.core.files.storage import default_storage
 from django.http import HttpResponse, StreamingHttpResponse, Http404
 from django.urls import reverse
 from django.utils import timezone
@@ -15,7 +15,6 @@ from .tasks import (
     generate_domain_report,
     generate_forms_count_by_submission_range,
     generate_media_storage_report,
-    generate_user_count_by_organization,
     generate_user_statistics_report,
     generate_user_details_report,
     generate_user_report,
@@ -224,35 +223,6 @@ def media_storage(request):
 
 
 @user_passes_test(lambda u: u.is_superuser)
-def user_count_by_organization(request):
-    """
-    Generates a report that counts the number of users per organization
-    """
-    # Generate the file basename
-    base_filename = 'user-count-by-organization_{}_{}_{}.csv'.format(
-        re.sub('[^a-zA-Z0-9]', '-', request.META['HTTP_HOST']),
-        date.today(),
-        datetime.now().microsecond
-    )
-
-    # Generate the CSV file
-    filename = _base_filename_to_full_filename(
-        base_filename, request.user.username)
-    generate_user_count_by_organization.delay(filename)
-
-    # Generate page text
-    template_ish = (
-        f'<html><head><title>Users by organization report</title></head>'
-        f'<body>Your report is being generated. Once finished, it will be '
-        f'available at <a href="{base_filename}">{base_filename}</a>.<br>'
-        f'If you receive a 404, please refresh your browser periodically until '
-        f'your request succeeds.</body></html>'
-    )
-
-    return HttpResponse(template_ish)
-
-
-@user_passes_test(lambda u: u.is_superuser)
 def user_report(request):
     """
     Generates a detailed report with a users details
@@ -330,7 +300,18 @@ def user_statistics_report(request):
     return HttpResponse(template_ish)
 
 
+@user_passes_test(lambda u: u.is_superuser)
 def user_details_report(request):
+
+    # Get the date filters from the query and set defaults
+    today = timezone.now().date()
+    first_of_month = today.replace(day=1)
+    if not (start_date := request.GET.get('start_date')):
+        start_date = str(first_of_month)
+
+    if not (end_date := request.GET.get('end_date')):
+        end_date = str(today)
+
     base_filename = 'user-details-report_{}_{}_{}.csv'.format(
         re.sub('[^a-zA-Z0-9]', '-', request.META['HTTP_HOST']),
         date.today(),
@@ -339,13 +320,23 @@ def user_details_report(request):
     filename = _base_filename_to_full_filename(
         base_filename, request.user.username
     )
-    generate_user_details_report.delay(filename)
+    url = f"{KOBOFORM_URL}{reverse('superuser_stats:user_details_report')}"
+    generate_user_details_report.delay(filename, start_date, end_date)
     template_ish = (
         f'<html><head><title>User details report</title></head>'
         f'<body>Your report is being generated. Once finished, it will be '
         f'available at <a href="{base_filename}">{base_filename}</a>.<br>'
         f'If you receive a 404, please refresh your browser periodically until '
-        f'your request succeeds.'
+        f'your request succeeds.<br><br>'
+        f'To select a date range based on the user\'s date joined, add a <code style="background: lightgray">?</code> at the end of the URL and set the '
+        f'<code style="background: lightgray">start_date</code> parameter to <code style="background: lightgray">YYYY-MM-DD</code> and/or the '
+        f'<code style="background: lightgray">end_date</code> parameter to <code style="background: lightgray">YYYY-MM-DD</code>.<br><br>'
+        f'<b>Example:</b><br>'
+        f'<a href="{url}?start_date={first_of_month}&end_date={today}">'
+        f'  {url}?start_date={first_of_month}&end_date={today}'
+        f'</a>'
+        f'<p>Range is <b>inclusive</b>.</p>'
+        f'<p>The default range is current month: {today.strftime("%B %Y")}.</p>'
         f'</body></html>'
     )
     return HttpResponse(template_ish)
@@ -359,7 +350,6 @@ def retrieve_reports(request, base_filename):
     """
     filename = _base_filename_to_full_filename(
         base_filename, request.user.username)
-    default_storage = get_storage_class()()
     if not default_storage.exists(filename):
         raise Http404
     # File is intentionally left open so it can be read by the streaming

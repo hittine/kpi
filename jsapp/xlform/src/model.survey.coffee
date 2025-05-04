@@ -9,7 +9,8 @@ $inputDeserializer = require './model.inputDeserializer'
 $inputParser = require './model.inputParser'
 $markdownTable = require './model.utils.markdownTable'
 csv = require './csv'
-LOCKING_PROFILES_PROP_NAME = require('js/components/locking/lockingConstants').LOCKING_PROFILES_PROP_NAME
+LOCKING_PROFILES_PROP_NAME = require('#/components/locking/lockingConstants').LOCKING_PROFILES_PROP_NAME
+txtid = require('#/utils').txtid
 
 module.exports = do ->
   class Survey extends $surveyFragment.SurveyFragment
@@ -297,7 +298,7 @@ module.exports = do ->
         rows = []
         cols = []
         for choiceList in lists.models
-          choiceList.set("name", $modelUtils.txtid(), silent: true)  unless choiceList.get("name")
+          choiceList.set("name", txtid(), silent: true)  unless choiceList.get("name")
           choiceList.finalize()
           clAtts = choiceList.toJSON()
           clName = clAtts.name
